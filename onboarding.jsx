@@ -306,7 +306,7 @@ function StartScreen({ onStart }) {
                 <div style={{ fontSize: 60, marginBottom: 20, filter: "drop-shadow(0 0 20px rgba(59, 130, 246, 0.5))" }}>🏙️</div>
 
                 <div style={{ fontSize: 13, letterSpacing: 5, color: "#3B82F6", textTransform: "uppercase", marginBottom: 16, fontWeight: 600 }}>
-                    Atlas Policy Simulator
+                    Policy Simulator
                 </div>
 
                 <h1 style={{
@@ -396,9 +396,9 @@ function TutorialFlow({ onComplete }) {
             justifyContent: "center",
             fontFamily: "Georgia, serif"
         }}>
-            {/* The background "Game" being explained */}
-            <div style={{ filter: "blur(2px)", opacity: 0.4, pointerEvents: "none", width: "100%", height: "100%" }}>
-                <MockGameUI />
+            {/* The background "Game" being explained - removed blur and opacity so spotlight is bright */}
+            <div style={{ pointerEvents: "none", width: "100%", height: "100%" }}>
+                <MockGameUI tutorialStep={tutorialStep} />
             </div>
 
             {/* Spotlight Overlay */}
@@ -408,15 +408,7 @@ function TutorialFlow({ onComplete }) {
                 background: "rgba(2, 8, 23, 0.7)",
                 zIndex: 50
             }}>
-                {/* Visual hole */}
-                <div style={{
-                    position: "absolute",
-                    ...currentStep.spotlight,
-                    boxShadow: "0 0 0 9999px rgba(2, 8, 23, 0.7), 0 0 30px rgba(59, 130, 246, 0.5)",
-                    borderRadius: currentStep.spotlight.borderRadius || 12,
-                    zIndex: 60,
-                    transition: "all 0.5s ease-in-out"
-                }} />
+                {/* Visual hole removed - components now use z-index to appear above overlay */}
             </div>
 
             {/* Content Box */}
@@ -442,20 +434,51 @@ function TutorialFlow({ onComplete }) {
     );
 }
 
-function MockGameUI() {
+function MockGameUI({ tutorialStep }) {
     return (
         <div style={{ padding: "80px 40px 40px", maxWidth: 900, margin: "0 auto", height: "100vh", position: "relative" }}>
             {/* Header Area */}
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 60, opacity: 0.8 }}>
-                <div style={{ background: "#0F172A", border: "1px solid #1E293B", padding: "12px 24px", borderRadius: 8 }}>
+            <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginBottom: 60,
+                position: "relative",
+                zIndex: (tutorialStep === 2 || tutorialStep === 3) ? 70 : 1
+            }}>
+                <div style={{
+                    background: tutorialStep === 3 ? "rgba(30, 41, 59, 1)" : "#0F172A",
+                    border: tutorialStep === 3 ? "1px solid #3B82F6" : "1px solid #1E293B",
+                    padding: "12px 24px",
+                    borderRadius: 8,
+                    boxShadow: tutorialStep === 3 ? "0 0 25px rgba(59, 130, 246, 0.4)" : "none",
+                    transition: "all 0.5s ease-in-out",
+                    transform: tutorialStep === 3 ? "scale(1.1)" : "scale(1)",
+                    opacity: tutorialStep === 3 || tutorialStep === undefined ? 1 : 0.4
+                }}>
                     <div style={{ color: "#64748B", fontSize: 11, textTransform: "uppercase", marginBottom: 4 }}>Budget</div>
                     <div style={{ color: "#10B981", fontSize: 20, fontWeight: 700 }}>$12,000,000</div>
                 </div>
-                <div style={{ textAlign: "center", paddingTop: 10 }}>
+                <div style={{
+                    textAlign: "center",
+                    paddingTop: 10,
+                    transform: tutorialStep === 2 ? "scale(1.2)" : "scale(1)",
+                    transition: "all 0.5s ease-in-out",
+                    opacity: tutorialStep === 2 || tutorialStep === undefined ? 1 : 0.4
+                }}>
                     <div style={{ fontSize: 40 }}>☀️</div>
                     <div style={{ color: "#FBBF24", fontWeight: 700, fontSize: 14 }}>Summer</div>
                 </div>
-                <div style={{ background: "#0F172A", border: "1px solid #1E293B", padding: "12px 24px", borderRadius: 8, textAlign: "right" }}>
+                <div style={{
+                    background: tutorialStep === 2 ? "rgba(30, 41, 59, 1)" : "#0F172A",
+                    border: tutorialStep === 2 ? "1px solid #3B82F6" : "1px solid #1E293B",
+                    padding: "12px 24px",
+                    borderRadius: 8,
+                    textAlign: "right",
+                    boxShadow: tutorialStep === 2 ? "0 0 25px rgba(59, 130, 246, 0.4)" : "none",
+                    transition: "all 0.5s ease-in-out",
+                    transform: tutorialStep === 2 ? "scale(1.1)" : "scale(1)",
+                    opacity: tutorialStep === 2 || tutorialStep === undefined ? 1 : 0.4
+                }}>
                     <div style={{ color: "#64748B", fontSize: 11, textTransform: "uppercase", marginBottom: 4 }}>Month</div>
                     <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 700 }}>June</div>
                 </div>
@@ -463,7 +486,17 @@ function MockGameUI() {
 
             <div style={{ display: "flex", gap: 40, alignItems: "flex-start" }}>
                 {/* Sliders Area */}
-                <div style={{ flex: 1, padding: 32, background: "rgba(15, 23, 42, 0.6)", border: "1px solid #1E293B", borderRadius: 16 }}>
+                <div style={{
+                    flex: 1,
+                    padding: 32,
+                    background: tutorialStep === 0 ? "rgba(30, 41, 59, 0.9)" : "rgba(15, 23, 42, 0.6)",
+                    border: tutorialStep === 0 ? "1px solid #3B82F6" : "1px solid #1E293B",
+                    borderRadius: 16,
+                    position: "relative",
+                    zIndex: tutorialStep === 0 ? 70 : 1,
+                    transition: "all 0.5s ease-in-out",
+                    boxShadow: tutorialStep === 0 ? "0 0 30px rgba(59, 130, 246, 0.3)" : "none"
+                }}>
                     <h4 style={{ margin: "0 0 24px", color: "#F8FAFC", fontSize: 16 }}>Policy Controls</h4>
                     {[
                         { label: "Uber Tax", val: 40, color: "#3B82F6" },
@@ -483,7 +516,17 @@ function MockGameUI() {
                 </div>
 
                 {/* Metrics Area */}
-                <div style={{ flex: 1, padding: 32, background: "rgba(15, 23, 42, 0.6)", border: "1px solid #1E293B", borderRadius: 16 }}>
+                <div style={{
+                    flex: 1,
+                    padding: 32,
+                    background: tutorialStep === 1 ? "rgba(30, 41, 59, 0.9)" : "rgba(15, 23, 42, 0.6)",
+                    border: tutorialStep === 1 ? "1px solid #3B82F6" : "1px solid #1E293B",
+                    borderRadius: 16,
+                    position: "relative",
+                    zIndex: tutorialStep === 1 ? 70 : 1,
+                    transition: "all 0.5s ease-in-out",
+                    boxShadow: tutorialStep === 1 ? "0 0 30px rgba(59, 130, 246, 0.3)" : "none"
+                }}>
                     <h4 style={{ margin: "0 0 24px", color: "#F8FAFC", fontSize: 16 }}>City Health Metrics</h4>
                     {[
                         { label: "Happiness", val: 82, color: "#10B981" },
@@ -519,7 +562,7 @@ const TUTORIAL_STEPS = [
         title: "Metric Bars",
         text: "These gauges show the health of the city. Keep an eye on Happiness, Mobility, and Congestion. If they drop too low, your term might end early!",
         spotlight: { top: "58%", left: "72%", width: "420px", height: "300px", transform: "translate(-50%, -50%)" },
-        contentPosition: { top: "50%", right: "68%", transform: "translateY(-50%)" }
+        contentPosition: { top: "50%", left: "5%", transform: "translateY(-50%)" }
     },
     {
         icon: "🌡️",
@@ -527,6 +570,13 @@ const TUTORIAL_STEPS = [
         text: "Seasons and temperature will affect the city dynamically. Extreme heat or cold makes transportation harder, and you'll need to adapt your policies.",
         spotlight: { top: "16.5%", left: "50%", width: "120px", height: "120px", transform: "translate(-50%, -50%)", borderRadius: "50%" },
         contentPosition: { top: "42%", left: "50%", transform: "translateX(-50%)" }
+    },
+    {
+        icon: "💰",
+        title: "City Budget",
+        text: "Keep an eye on your funds. Implementing policies costs money, but some taxes can help you generate revenue. Don't let it hit zero!",
+        spotlight: { top: "16.5%", left: "20%", width: "200px", height: "100px", transform: "translate(-50%, -50%)" },
+        contentPosition: { top: "35%", left: "20%", transform: "translateX(-50%)" }
     },
     {
         icon: "⚖️",
