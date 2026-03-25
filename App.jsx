@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import OnboardingFlow from './onboarding.jsx';
 import TransportTycoon from './city1_game.jsx';
 import RiverdaleTycoon from './city2_game.jsx';
+import GildedHollowTycoon from './city3_game.jsx';
 
 function App() {
     const [activeComponent, setActiveComponent] = useState('menu');
@@ -14,6 +15,8 @@ function App() {
                 return <TransportTycoon />;
             case 'city2':
                 return <RiverdaleTycoon />;
+            case 'city3':
+                return <GildedHollowTycoon />;
             default:
                 return (
                     <div style={{
@@ -42,6 +45,11 @@ function App() {
                                 title="City 2: Riverdale"
                                 desc="Advanced Demographics"
                                 onClick={() => setActiveComponent('city2')}
+                            />
+                            <TestCard
+                                title="City 3: Gilded Hollow"
+                                desc="Gender Safety & Equity Dynamics"
+                                onClick={() => setActiveComponent('city3')}
                             />
                         </div>
                     </div>

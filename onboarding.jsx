@@ -249,6 +249,30 @@ const STORY_SCREENS = [
         text: "As the new Director of Transit, their problems are your problems. Your policies will determine how the city moves."
     },
     {
+        type: "narrative",
+        icon: "🤖",
+        title: "City 1: Future Autonomous Congestion",
+        text: "In the future, autonomous ride-hailing reduces the effective cost of Uber, causing more people to take it. That increases demand for curb space and road capacity, pushing congestion upward. In this opening phase, the game intentionally locks the Uber Tax lever for the first two turns, so congestion has time to rise before you can use tax to push riders back and recover traffic. During the lock, rely on bus policy and budgeting to manage mobility while the city adapts."
+    },
+    {
+        type: "narrative",
+        icon: "🌦️",
+        title: "City 2: Seasons & Bus AC",
+        text: "Now the calendar matters. As seasons shift, buses become less comfortable in extreme heat and cold, so ridership swings between Uber and transit. You gain a new lever: “Bus AC & Heating.” Invest in comfort before the harshest months so buses stay an attractive option, and you can maintain mobility even when weather would normally push people away."
+    },
+    {
+        type: "narrative",
+        icon: "💰",
+        title: "City 3: Rich vs Poor",
+        text: "Policies stop being “one size fits all.” The city splits into rich and poor residents, and each group has different mobility tradeoffs and fewer alternatives when prices change. You’ll effectively manage two mobility problems at once: high Uber pricing (or taxes) can help congestion, but it may hit poor riders harder, while bus subsidies can protect them—at a budget cost. Watch the gap between groups because equity affects happiness."
+    },
+    {
+        type: "narrative",
+        icon: "🚻",
+        title: "City 4: Gendered Barriers",
+        text: "City 4 adds a new lens: gendered experiences of transit. Safety, comfort, and access barriers mean that the same policy can improve mobility for one gender group while barely helping (or even worsening) outcomes for another, especially when external conditions strain the system. You should expect a new “Gender Equity” metric: aim to raise it by choosing policies and investments that reduce unequal barriers, not just raise the overall average."
+    },
+    {
         type: "goal",
         icon: "⚖️",
         title: "Balance Competing Needs",
