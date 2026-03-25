@@ -115,7 +115,7 @@ const SCORING = {
 
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Welcome to Riverdale — 200,000 people, very unequal. You now tax Uber rather than subsidise it. The tax earns revenue and cuts congestion — but it hits poor citizens hardest, since they rely on Uber more than the wealthy. Use that revenue to fund bus subsidies and AC. Equity is 35% of your final score. Hit End Turn when you're ready, or the clock decides.`,
+  gameIntro: `Welcome to Gilded Hollow — 200,000 people, very unequal. You now tax Uber rather than subsidise it. The tax earns revenue and cuts congestion — but it hits poor citizens hardest, since they rely on Uber more than the wealthy. Use that revenue to fund bus subsidies and AC. Equity is 35% of your final score. Hit End Turn when you're ready, or the clock decides.`,
   monthStartHints: [
     "January 🥶 — Deep winter. Cold buses are empty. AC costs budget — but the Uber tax helps fund it.",
     "Still cold. Heavy Uber tax hits poor mobility hardest — they have fewer alternatives than the rich.",
@@ -131,7 +131,7 @@ const ADVISOR = {
     "Final month ❄️. Equity is 35% of your score — close the gap before the year ends.",
   ],
   monthEndReactions: {
-    highHappiness: ["Great month! Both groups moving well — and buses were comfortable.", "Riverdale is working. Mobility up, equity gap manageable.", "Strong policy. Tax revenue funding real access."],
+    highHappiness: ["Great month! Both groups moving well — and buses were comfortable.", "Gilded Hollow is working. Mobility up, equity gap manageable.", "Strong policy. Tax revenue funding real access."],
     equityGap: ["Rich can absorb the Uber tax — poor can't. The gap is widening. Invest in bus + AC to compensate.", "Heavy Uber tax disproportionately hurts low-income riders. Bus subsidies and AC are the equity correction.", "This is the core finding: pricing policies hit the poor hardest. Targeted investment is the antidote."],
     heatNeedingAC: ["Hot buses, high Uber tax — poor citizens are stranded. AC would have kept buses attractive.", "Heat + expensive Uber is a mobility crisis for low-income riders.", "Without AC, extreme weather forces poor citizens to choose between a hot bus and a taxed Uber they can't afford."],
     coldNeedingAC: ["Cold buses + expensive Uber = poor citizens staying home. AC heating is the equity tool here.", "Winter cold without bus heating hits the poor hardest.", "Low-income riders avoiding cold buses. AC is your most equity-efficient lever in winter."],
@@ -162,7 +162,7 @@ const DEBRIEF = {
   equityInsight: `The research shows poor citizens have price elasticity ~2.4× higher than wealthy ones. Uber taxes are regressive — they hit the poor hardest. The antidote is reinvesting that tax revenue into public transport that specifically serves lower-income riders: bus subsidies and AC investment.`,
   seasonInsight: `"Weathering the Ride" documents that temperature swings shift bus riders to ride-hailing. Without climate-controlled buses, seasonal extremes become seasonal equity crises — occurring twice a year, every year.`,
   balanceInsight: `You found the balance: moderate Uber tax funding targeted bus and AC investment. This mirrors real policy recommendations — use ride-hailing taxes to cross-subsidize public transport, with particular attention to comfort in extreme weather.`,
-  city3Teaser: `City 3 adds gender dynamics. Women face specific safety barriers on public transit that price subsidies alone can't fix. Female price elasticity is nearly 2.5× higher than male — but safety investment matters just as much.`,
+  city4Teaser: `City 4 adds gender dynamics. Women face specific safety barriers on public transit that price subsidies alone can't fix. Female price elasticity is nearly 2.5× higher than male — but safety investment matters just as much.`,
   source: `Christensen & Osman (2025) "Demand for Mobility" · Christensen & Osman (2023) "Weathering the Ride"`,
 };
 
@@ -598,7 +598,7 @@ function PoliticalLossScreen({ month, onRestart, onContinue }) {
         <div style={{ fontSize: 54, marginBottom: 10 }}>🗳️</div>
         <div style={{ fontSize: 11, letterSpacing: 3, color: C.purple, textTransform: "uppercase", marginBottom: 8, fontWeight: 800 }}>Political Ejection</div>
         <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 10px" }}>You've been voted out</h2>
-        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below 30. Riverdale needs a new Transport Director.</p>
+        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below 30. Gilded Hollow needs a new Transport Director.</p>
         <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>Removed in <strong>{month}</strong>. Sustained low happiness signals policy failure — not just a bad month.</p>
         <div style={{ marginBottom: 22 }}><AdvisorBox message="Three consecutive months of deep unhappiness is a political signal. Check whether the Uber tax was too high without bus and AC compensation." /></div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -616,7 +616,7 @@ function GameOverScreen({ month, onRestart, onContinue }) {
       <div style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 52, marginBottom: 10 }}>💸</div>
         <div style={{ fontSize: 10, letterSpacing: 4, color: C.red, textTransform: "uppercase", marginBottom: 8 }}>Budget Depleted</div>
-        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Riverdale Bankrupt</h2>
+        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Gilded Hollow Bankrupt</h2>
         <p style={{ fontSize: 13, color: C.textSub, lineHeight: 1.7, marginBottom: 22 }}>
           The city ran out of funds in <strong>{month}</strong>. Bus and AC costs outpaced Uber tax revenue.
         </p>
@@ -638,7 +638,7 @@ function IntroScreen({ onStart }) {
     <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: 20 }}>
       <div style={{ maxWidth: 460, textAlign: "center" }}>
         <div style={{ fontSize: 50, marginBottom: 10 }}>🏙️</div>
-        <div style={{ fontSize: 10, letterSpacing: 4, color: C.blue, textTransform: "uppercase", marginBottom: 10 }}>Transport Tycoon · City 2</div>
+        <div style={{ fontSize: 10, letterSpacing: 4, color: C.blue, textTransform: "uppercase", marginBottom: 10 }}>Transport Tycoon · City 3</div>
         <h1 style={{ fontSize: 38, fontWeight: 800, color: C.text, margin: "0 0 5px" }}>{CITY_META.name}</h1>
         <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 20, fontStyle: "italic" }}>{CITY_META.subtitle}</p>
         <div style={{ marginBottom: 20 }}><AdvisorBox message={ADVISOR.gameIntro} /></div>
@@ -695,7 +695,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <div>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 2 · {CITY_META.name}</div>
+            <div style={{ fontSize: 9, letterSpacing: 3, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 3 · {CITY_META.name}</div>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: "2px 0 0" }}>{month}</h2>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -993,8 +993,8 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
           <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, borderLeft: `3px solid ${C.purple}`, paddingLeft: 10, margin: "0 0 10px" }}>{DEBRIEF.equityInsight}</p>
           <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, borderLeft: `3px solid ${C.cyan}`, paddingLeft: 10, margin: "0 0 10px" }}>{DEBRIEF.seasonInsight}</p>
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 7, padding: "9px 12px", marginTop: 10 }}>
-            <div style={{ fontSize: 10, color: C.blue, marginBottom: 4, fontWeight: 800 }}>🏙️ Up Next: City 3 — New Meridian</div>
-            <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6 }}>{DEBRIEF.city3Teaser}</div>
+            <div style={{ fontSize: 10, color: C.blue, marginBottom: 4, fontWeight: 800 }}>🏙️ Up Next: City 4 — New Meridian</div>
+            <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6 }}>{DEBRIEF.city4Teaser}</div>
           </div>
           <div style={{ fontSize: 9, color: C.textFaint, marginTop: 10 }}>{DEBRIEF.source}</div>
         </div>
@@ -1008,7 +1008,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
 // ============================================================
 //  MAIN GAME CONTROLLER
 // ============================================================
-export default function RiverdaleTycoon() {
+export default function GildedHollowTycoon() {
   const [screen, setScreen] = useState("intro");
   const [roundIndex, setRound] = useState(0);
   const [uberTax, setUber] = useState(0);
