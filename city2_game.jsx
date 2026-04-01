@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 // ============================================================
-//  DESIGN TOKENS  (new warm palette)
+//  DESIGN TOKENS
 // ============================================================
 const C = {
   pageBg: "#F7F4EF", cardBg: "#FFFFFF", insetBg: "#EAE6DE",
@@ -22,76 +22,56 @@ const C = {
 //  BLUEPRINT
 // ============================================================
 const CITY_META = {
-  name: "Riverdale",
-  subtitle: "A growing city where not everyone is equal",
+  name: "Smallville",
+  subtitle: "A city learning to cope with changing seasons",
   population: 200000,
-  richFraction: 0.40,
-  poorFraction: 0.60,
-  intro: `Riverdale has 200,000 people — 60% low-income, 40% wealthy. Uber is taxed, not subsidised: the tax earns revenue AND cuts congestion, but reduces mobility — especially for poor citizens who have fewer alternatives. Bus subsidies and AC investment cost money. Seasons will test you: summer heat and winter cold empty the buses unless they're comfortable. Keep everyone moving, close the equity gap, and don't go broke.`,
+  intro: `Smallville has 200,000 people. Unlike City 1, the seasons here hit hard — heatwaves and cold snaps drive people off buses and into Ubers, spiking congestion. You have $30M for the year and three levers: tax Uber (earns revenue, cuts congestion), subsidize buses (costs money, keeps people moving), and invest in bus AC & heating (costs money, keeps buses comfortable year-round). When weather is extreme and buses are uncomfortable, bus subsidies alone won't help. Plan for the seasons.`,
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const TIMER = { monthDuration: 25, warningAt: 6, endingDuration: 1200 };
 
 const SEASONS = {
+  // -1.0 = peak cold, 0 = mild, +1.0 = peak heat
   tempIndex: [-1.0, -0.7, -0.3, 0.0, 0.4, 0.8, 1.0, 0.8, 0.4, 0.0, -0.4, -0.8],
   seasonLabel: ["Deep Winter", "Late Winter", "Early Spring", "Spring", "Late Spring", "Early Summer", "Peak Summer", "Late Summer", "Early Autumn", "Autumn", "Late Autumn", "Early Winter"],
   seasonIcon: ["🥶", "🥶", "🌱", "🌿", "☀️", "🌡️", "🔥", "🌡️", "🍂", "🍂", "🌧️", "❄️"],
-  peakBusMobilityPenalty: 18,
-  peakUberDemandBoost: 8,
-  peakBaselineMobilityPenalty: 5,
-  // CHANGE 2: AC collapse mechanic
-  acCollapseThreshold: 0.25,
-  collapseMultiplier: 2.5,
+  peakBusMobilityPenalty: 22,   // max mobility points lost from bus discomfort
+  peakUberDemandBoost: 8,       // extra congestion from weather-driven Uber use
+  peakBaselineMobilityPenalty: 5, // mobility drag that exists regardless of AC
+  acCollapseThreshold: 0.25,    // AC mitigation below this triggers collapse in extreme weather
+  collapseMultiplier: 2.5,      // how much worse the penalty is during collapse
 };
 
-// BUG FIX: Baselines corrected so bus subsidies start in "boosting" mode for poor.
-// Old: poorMobility:55 was ABOVE the old flipPoint:50 → bus always constrained poor.
-// New: poorMobility:35 is well BELOW flipPoint:65 → bus boosts poor from rest state.
 const SIMULATION = {
-  baseline: {
-    poorMobility: 35,   // BUG FIX: lowered from 55
-    richMobility: 58,   // BUG FIX: lowered from 70
-    congestionLevel: 50,
-    poorHappiness: 40,   // adjusted to match new baseline
-    richHappiness: 58,
-  },
+  baseline: { mobilityScore: 58, congestionLevel: 50, happinessScore: 50 },
   uber: {
-    congestionReductionPerPercent: 0.35,  // BUG FIX: reduced from 0.50 (was masking rich mobility drop)
+    congestionReductionPerPercent: 0.42,
     revenueRate: 0.0020,
   },
   bus: {
-    // BUG FIX: flipPoint raised from 50→65 so poor (baseline 35) have growth room before flip
-    mobilityFlipPoint: 65,
-    poorMobilityGainBelowFlip: 0.35,   // BUG FIX: increased from 0.30 for clearer boost effect
-    poorMobilityLossAboveFlip: 0.08,
-    richMobilityGainBelowFlip: 0.06,
-    richMobilityLossAboveFlip: 0.04,
-    congestionOffsetPerPercent: 0.18,
+    mobilityFlipPoint: 52,
+    mobilityGainPerPercentBelowFlip: 0.22,
+    mobilityLossPerPercentAboveFlip: 0.10,
+    congestionOffsetPerPercent: 0.16,
     costRate: 0.0014,
   },
   ac: {
     mitigationExponent: 0.7,
-    poorComfortBonusPerPercent: 0.12,
-    richComfortBonusPerPercent: 0.03,
     costRate: 0.0018,
   },
   happiness: {
-    // BUG FIX: higher mobility weights so bus gains are visible in happiness
-    poor: { mobilityWeight: 0.65, congestionWeight: 0.15, acComfortWeight: 0.20, budgetStressWeight: 0.35 },
-    rich: { mobilityWeight: 0.45, congestionWeight: 0.45, acComfortWeight: 0.05, budgetStressWeight: 0.30 },
+    mobilityWeight: 0.60,
+    congestionWeight: 0.40,
+    budgetStressWeight: 0.35,
     min: 0, max: 100,
   },
-  // BUG FIX: smaller gap penalty so equity score isn't pinned at extremes
-  equity: { penaltyPerGapPoint: 1.5, min: 0, max: 100 },
   thresholds: {
     happiness: { good: 65, warning: 40 },
-    congestion: { good: 40, warning: 65 },
-    mobility: { good: 60, warning: 42 },
-    equity: { good: 65, warning: 40 },
+    congestion: { good: 38, warning: 65 },
+    mobility: { good: 62, warning: 44 },
     budget: { safe: 0.50, warning: 0.20 },
   },
-  // CHANGE 3: Political ejection
   politicalFloor: 30,
   politicalStreakNeeded: 3,
 };
@@ -99,70 +79,65 @@ const SIMULATION = {
 const BUDGET_CONFIG = {
   annualBudget: 30.0,
   warningFraction: 0.20,
+  budgetBonusWeight: 0.12,
 };
 
 const SCORING = {
-  weights: { happiness: 0.40, equity: 0.35, budget: 0.25 },
   grades: [
-    { min: 85, grade: "A+", label: "Model City", color: C.green },
-    { min: 75, grade: "A", label: "Equitable & Thriving", color: C.green },
-    { min: 65, grade: "B", label: "Getting There", color: "#3D7A2B" },
-    { min: 55, grade: "C", label: "Uneven Progress", color: C.amber },
-    { min: 45, grade: "D", label: "Widening Gap", color: "#C05621" },
-    { min: 0, grade: "F", label: "Two-Tier City", color: C.red },
+    { min: 85, grade: "A+", label: "All-Season City", color: C.green },
+    { min: 75, grade: "A", label: "Thriving Year-Round", color: C.green },
+    { min: 65, grade: "B", label: "Good Progress", color: "#3D7A2B" },
+    { min: 55, grade: "C", label: "Seasonal Struggles", color: C.amber },
+    { min: 45, grade: "D", label: "Gridlock in Heat & Cold", color: "#C05621" },
+    { min: 0, grade: "F", label: "City Failing", color: C.red },
   ],
 };
 
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Welcome to Riverdale — 200,000 people, very unequal. You now tax Uber rather than subsidise it. The tax earns revenue and cuts congestion — but it hits poor citizens hardest, since they rely on Uber more than the wealthy. Use that revenue to fund bus subsidies and AC. Equity is 35% of your final score. Hit End Turn when you're ready, or the clock decides.`,
+  gameIntro: `Welcome to Smallville — bigger city, bigger weather swings. In July and January, buses empty out unless they're climate-controlled. Your third lever — Bus AC & Heating — costs money but keeps buses attractive year-round. Without it, even a generous bus subsidy fails in extreme months. Use Uber tax revenue to fund both bus subsidies and AC. 25 seconds per month.`,
   monthStartHints: [
-    "January 🥶 — Deep winter. Cold buses are empty. AC costs budget — but the Uber tax helps fund it.",
-    "Still cold. Heavy Uber tax hits poor mobility hardest — they have fewer alternatives than the rich.",
-    "Winter easing. AC costs drop. Good month to experiment with tax and subsidy balance.",
-    "Spring — mild temperatures. Buses are naturally attractive. A lower Uber tax won't hurt as much now.",
-    "Late spring. Temperatures climbing. Plan your AC strategy before July.",
-    "Early summer 🌡️ — buses warming. The equity gap widens when poor riders can't afford taxed Uber AND buses are hot.",
-    "Peak summer 🔥 — hardest month. High AC keeps poor riders on buses. Without it, they're stranded.",
-    "Still hot. Uber tax revenue can fund the AC you need — use it.",
-    "Summer fading. Ease the Uber tax to restore mobility as AC costs drop.",
-    "Autumn 🍂 — mild. Recover budget before winter.",
-    "Late autumn. Cold returning. Prepare AC before December.",
-    "Final month ❄️. Equity is 35% of your score — close the gap before the year ends.",
+    "January 🥶 — Deep winter. Buses are freezing. Low AC means riders switch to Uber — congestion up. Plan your AC investment carefully.",
+    "Still cold. Cold buses hit mobility hard. If AC is low, the bus subsidy isn't helping much — riders avoid buses regardless of price.",
+    "Winter easing. AC costs drop. Good month to experiment with the tax and subsidy balance before summer arrives.",
+    "Spring — mild temperatures. Buses are naturally attractive. A moderate Uber tax + bus subsidy should work well now.",
+    "Late spring. Temperatures climbing. Start investing in AC before July — don't wait for the collapse.",
+    "Early summer 🌡️ — buses warming. Without AC, riders shift to Uber. Congestion creeps up.",
+    "Peak summer 🔥 — hardest month. AC below 25% triggers a bus collapse. Don't let it happen.",
+    "Still hot. Uber tax revenue funds the AC you need — use it.",
+    "Summer fading. Ease the Uber tax as AC costs drop and buses become more attractive again.",
+    "Autumn 🍂 — mild. Recover budget before winter. Moderate policy works well now.",
+    "Late autumn. Cold returning. Prepare AC levels before December.",
+    "Final month ❄️. Finish strong — remaining budget adds to your final score.",
   ],
   monthEndReactions: {
-    highHappiness: ["Great month! Both groups moving well — and buses were comfortable.", "Riverdale is working. Mobility up, equity gap manageable.", "Strong policy. Tax revenue funding real access."],
-    equityGap: ["Rich can absorb the Uber tax — poor can't. The gap is widening. Invest in bus + AC to compensate.", "Heavy Uber tax disproportionately hurts low-income riders. Bus subsidies and AC are the equity correction.", "This is the core finding: pricing policies hit the poor hardest. Targeted investment is the antidote."],
-    heatNeedingAC: ["Hot buses, high Uber tax — poor citizens are stranded. AC would have kept buses attractive.", "Heat + expensive Uber is a mobility crisis for low-income riders.", "Without AC, extreme weather forces poor citizens to choose between a hot bus and a taxed Uber they can't afford."],
-    coldNeedingAC: ["Cold buses + expensive Uber = poor citizens staying home. AC heating is the equity tool here.", "Winter cold without bus heating hits the poor hardest.", "Low-income riders avoiding cold buses. AC is your most equity-efficient lever in winter."],
-    highCongestion: ["Congestion still high despite the Uber tax. Make sure the tax is high enough to shift riders to buses.", "Roads packed. A higher tax shifts more people to shared transport — but watch poor mobility."],
-    lowMobility: ["Mobility dropped. The Uber tax may be too high — or bus + AC investment too low to compensate.", "City isn't moving much. Consider easing the tax and boosting bus subsidies."],
-    budgetWarning: ["Budget thin. Uber tax is your income — make sure it's earning enough to cover bus and AC costs.", "Less than 20% remaining. Check whether tax revenue is keeping pace with your spending."],
-    revenueGain: ["Budget grew this month — tax revenue exceeded bus and AC costs. The self-funding model is working.", "Positive budget month. Uber tax revenue is doing real work.", "Revenue positive. Keep this balance and equity will follow."],
-    balanced: ["Solid month. Mobility decent, equity gap manageable, budget stable.", "Steady and sustainable."],
-    noPolicy: ["No tax, no subsidy, no AC. Buses are uncomfortable, Uber is unchecked. Congestion is high.", "Laissez-faire month — congestion builds and the equity gap widens without intervention."],
+    highHappiness: ["Great month! Mobility is strong, congestion manageable, and buses comfortable.", "Smallville is moving well. Seasonal planning is paying off.", "Strong policy. Tax revenue funding real comfort and access."],
+    heatNeedingAC: ["Hot buses + high Uber tax = stranded riders. AC would have kept buses attractive this month.", "Heat without AC forces people off buses. Congestion follows.", "Extreme heat + low AC is a mobility crisis. Invest in climate control before next summer."],
+    coldNeedingAC: ["Cold buses + low AC = empty buses. Riders take Uber instead — congestion rises.", "Winter without bus heating hurts. AC is your most important lever in extreme months.", "Low-income riders can't afford both: a taxed Uber AND a cold bus. Heating is the solution."],
+    highCongestion: ["Roads are packed. Low Uber tax means cheap rides but clogged streets. Consider raising it.", "Too many cars. Uber tax would reduce congestion AND earn revenue.", "Gridlock. The weather is pushing people into Ubers — tax them to fund the solution."],
+    lowMobility: ["Mobility dropped. The Uber tax may be too high, or AC too low to keep buses viable.", "City isn't moving much. Ease the tax or boost bus comfort."],
+    budgetWarning: ["Budget thin. Uber tax is your income — make sure it's earning enough.", "Less than 20% remaining. Three cost streams vs one income stream — rebalance."],
+    revenueGain: ["Budget grew this month — tax revenue exceeded bus and AC costs. The model is working.", "Positive budget month. Keep this balance.", "Revenue positive. Consistent policy beats erratic swings."],
+    balanced: ["Solid month. Mobility decent, buses comfortable, budget stable.", "Steady and sustainable."],
+    noPolicy: ["No tax, no subsidy, no AC. Buses are uncomfortable, Uber unchecked, congestion high.", "Laissez-faire month. Weather and unchecked Uber stack the odds against the city."],
     timedOut: ["Time ran out. Set AC first in extreme months — then tax and subsidy.", "The clock beat you. Hit End Turn earlier next month."],
   },
   tooltips: {
-    happiness: "Weighted city happiness: 60% poor + 40% rich. Poor happiness driven by mobility, AC comfort, budget stress. Rich by mobility and congestion.",
-    mobility: "City mobility: 60% poor + 40% rich. Uber tax reduces mobility — hitting poor ~4× harder. Bus helps below flip point, constrains above. AC offsets seasonal drops.",
-    congestion: "Road congestion. Uber tax reduces it (fewer cars). Bus subsidy reduces it. Bigger city = faster compounding.",
-    equity: "How equal the city is. 100 minus the rich/poor mobility gap. Narrow it with bus subsidies and AC — tools that specifically help poor riders.",
-    budget: "Remaining budget ($30M). Uber tax earns money. Bus subsidies and AC cost money. Net delta can be positive or negative each month.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion — but reduces mobility. Hits poor citizens ~4× harder than rich (fewer alternatives). Your income lever.",
-    busSubsidy: "Discount on bus fares. Strong effect on poor. Mobility flips above 65. Always reduces congestion. Costs budget.",
-    acLevel: "Bus climate comfort. At 0%, extreme weather empties buses — hitting poor hardest. At 100%, buses stay attractive year-round. Costs scale with temperature extremity.",
-    poorMobility: "Mobility of 60% low-income population. Key driver of equity score. Uber tax hits them ~4× harder than rich.",
-    richMobility: "Mobility of 40% wealthy population. Lower sensitivity to Uber tax — they have private alternatives.",
+    happiness: "Overall citizen satisfaction. Driven by mobility, congestion, and budget stress. Extreme weather months can drag this down sharply without AC.",
+    mobility: "How much citizens are moving. Uber tax reduces it non-linearly. Bus subsidy helps below the flip point. Weather penalty reduces it — AC mitigates this.",
+    congestion: "Road congestion. Uber tax reduces it. Bus subsidy reduces it. Extreme weather boosts Uber demand and raises congestion without AC.",
+    budget: "Remaining budget ($30M). Uber tax earns money. Bus subsidies and AC cost money. AC costs scale with weather severity.",
+    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion — but non-linearly reduces mobility. Gentle below 30%, steep 30–60%, punishing above 60%.",
+    busSubsidy: "Discount on bus fares. Boosts mobility below the flip point. Always reduces congestion. Costs budget. In extreme weather, low AC limits its effect — people avoid buses regardless of price.",
+    acLevel: "Bus climate control. At 0%, extreme weather empties buses — dropping mobility sharply. At 100%, buses stay attractive year-round. Costs scale with temperature extremity. Below 25% in extreme weather triggers a collapse.",
   },
 };
 
 const DEBRIEF = {
-  coreInsight: `Christensen & Osman (2023) found that hot weather causes significant mode substitution away from buses toward ride-hailing — especially among lower-income riders. When buses are uncomfortable AND Uber is expensive, poor citizens are left without viable options. This is why bus comfort investment is an equity intervention, not just a service upgrade.`,
-  equityInsight: `The research shows poor citizens have price elasticity ~2.4× higher than wealthy ones. Uber taxes are regressive — they hit the poor hardest. The antidote is reinvesting that tax revenue into public transport that specifically serves lower-income riders: bus subsidies and AC investment.`,
-  seasonInsight: `"Weathering the Ride" documents that temperature swings shift bus riders to ride-hailing. Without climate-controlled buses, seasonal extremes become seasonal equity crises — occurring twice a year, every year.`,
-  balanceInsight: `You found the balance: moderate Uber tax funding targeted bus and AC investment. This mirrors real policy recommendations — use ride-hailing taxes to cross-subsidize public transport, with particular attention to comfort in extreme weather.`,
-  city3Teaser: `City 3 adds gender dynamics. Women face specific safety barriers on public transit that price subsidies alone can't fix. Female price elasticity is nearly 2.5× higher than male — but safety investment matters just as much.`,
+  coreInsight: `Christensen & Osman (2023) found that hot weather causes significant mode substitution away from buses toward ride-hailing. When buses are uncomfortable AND Uber is taxed, citizens are caught between two bad options. Bus climate investment isn't just a comfort upgrade — it's a mobility and congestion policy tool.`,
+  seasonInsight: `"Weathering the Ride" documents that temperature swings shift bus riders to ride-hailing. Without climate-controlled buses, seasonal extremes become seasonal congestion crises — occurring twice a year, every year. The fix: invest in AC before the peak, funded by Uber tax revenue.`,
+  balanceInsight: `You found the balance: moderate Uber tax funding targeted bus subsidies and AC investment. This mirrors real policy recommendations — use ride-hailing taxes to cross-subsidize public transport, with particular attention to comfort in extreme weather.`,
+  city3Teaser: `City 3 adds a harder challenge: not everyone is equal. Rich and poor citizens respond very differently to Uber taxes — and the equity implications are significant. How do you make a city work for everyone?`,
   source: `Christensen & Osman (2025) "Demand for Mobility" · Christensen & Osman (2023) "Weathering the Ride"`,
 };
 
@@ -174,181 +149,131 @@ function getTemp(roundIndex) {
   return { tempIndex: ti, tempDiscomfort: Math.abs(ti) };
 }
 
-// BUG FIX: Two clean separate loss curves.
-// Old version had tangled (scale * 3.3) factors that barely moved rich mobility.
-// Now: poor lose steeply (up to −69pts at max tax), rich lose modestly but visibly.
-function uberMobilityLoss(tax, isPoor) {
-  if (isPoor) {
-    if (tax <= 30) return tax * 0.40;
-    if (tax <= 60) return 12 + (tax - 30) * 0.70;
-    return 33 + (tax - 60) * 0.90;
-  } else {
-    if (tax <= 30) return tax * 0.10;
-    if (tax <= 60) return 3 + (tax - 30) * 0.25;
-    return 10.5 + (tax - 60) * 0.35;
-  }
+// Non-linear Uber mobility loss — single population, slightly steeper than City 1
+function uberMobilityLoss(tax) {
+  if (tax <= 30) return tax * 0.18;
+  if (tax <= 60) return 5.4 + (tax - 30) * 0.50;
+  return 20.4 + (tax - 60) * 0.72;
 }
 
 function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
-  const { baseline, bus, ac, happiness, equity } = SIMULATION;
+  const { baseline, bus, uber, happiness } = SIMULATION;
   const { tempIndex: ti, tempDiscomfort } = getTemp(roundIndex);
-  const acMitigation = Math.pow(acLevel / 100, ac.mitigationExponent);
-  const acComfort = acLevel / 100;
+  const acMitigation = Math.pow(acLevel / 100, SIMULATION.ac.mitigationExponent);
 
-  // ── POOR MOBILITY ──────────────────────────────────────────
-  const poorUberLoss = uberMobilityLoss(uberTax, true);
-  const poorMobilityB4Bus = Math.max(0, baseline.poorMobility - poorUberLoss);
-  const poorBusEffect = poorMobilityB4Bus < bus.mobilityFlipPoint
-    ? busSubsidy * bus.poorMobilityGainBelowFlip
-    : busSubsidy * -bus.poorMobilityLossAboveFlip;
+  // ── MOBILITY ─────────────────────────────────────────────────
+  const uberLoss = uberMobilityLoss(uberTax);
+  const mobilityBeforeBus = Math.max(0, baseline.mobilityScore - uberLoss);
 
-  // CHANGE 2: AC collapse mechanic — extreme heat/cold without AC is 2.5× worse
+  const busEffect = mobilityBeforeBus < bus.mobilityFlipPoint
+    ? busSubsidy * bus.mobilityGainPerPercentBelowFlip
+    : busSubsidy * -bus.mobilityLossPerPercentAboveFlip;
+
+  // AC collapse: extreme weather + AC below threshold → 2.5× penalty
   const collapseActive = tempDiscomfort > 0.6 && acMitigation < SEASONS.acCollapseThreshold;
   const collapseMulti = collapseActive ? SEASONS.collapseMultiplier : 1.0;
   const busTempPenalty = tempDiscomfort * SEASONS.peakBusMobilityPenalty * (1 - acMitigation) * collapseMulti;
   const baselineTempPenalty = tempDiscomfort * SEASONS.peakBaselineMobilityPenalty;
   const weatherUberBoost = tempDiscomfort * SEASONS.peakUberDemandBoost * (1 - acMitigation * 0.5);
 
-  const poorMobility = Math.min(100, Math.max(0,
-    poorMobilityB4Bus + poorBusEffect
-    - busTempPenalty - baselineTempPenalty + weatherUberBoost * 0.3
+  const mobilityScore = Math.min(100, Math.max(0,
+    mobilityBeforeBus + busEffect - busTempPenalty - baselineTempPenalty + weatherUberBoost * 0.25
   ));
 
-  // ── RICH MOBILITY ──────────────────────────────────────────
-  const richUberLoss = uberMobilityLoss(uberTax, false);
-  const richMobilityB4Bus = Math.max(0, baseline.richMobility - richUberLoss);
-  const richBusEffect = richMobilityB4Bus < bus.mobilityFlipPoint
-    ? busSubsidy * bus.richMobilityGainBelowFlip
-    : busSubsidy * -bus.richMobilityLossAboveFlip;
-  const richMobility = Math.min(100, Math.max(0,
-    richMobilityB4Bus + richBusEffect - baselineTempPenalty * 0.4
-  ));
-
-  const cityMobility = CITY_META.poorFraction * poorMobility + CITY_META.richFraction * richMobility;
-
-  // ── CONGESTION ─────────────────────────────────────────────
+  // ── CONGESTION ───────────────────────────────────────────────
   const congestionLevel = Math.min(100, Math.max(5,
     baseline.congestionLevel
-    - uberTax * SIMULATION.uber.congestionReductionPerPercent
+    - uberTax * uber.congestionReductionPerPercent
     - busSubsidy * bus.congestionOffsetPerPercent
     + weatherUberBoost * 0.2
   ));
 
-  // ── EQUITY ─────────────────────────────────────────────────
-  const mobilityGap = Math.max(0, richMobility - poorMobility);
-  const equityScore = Math.min(100, Math.max(0, 100 - mobilityGap * equity.penaltyPerGapPoint));
-
-  // ── AC COMFORT ─────────────────────────────────────────────
-  const comfortRelevance = 0.3 + tempDiscomfort * 0.7;
-  const poorACBonus = acComfort * ac.poorComfortBonusPerPercent * 100 * comfortRelevance;
-  const richACBonus = acComfort * ac.richComfortBonusPerPercent * 100 * comfortRelevance;
-
-  // ── BUDGET ─────────────────────────────────────────────────
+  // ── BUDGET ───────────────────────────────────────────────────
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
   const budgetStress = budgetFraction > 0.5 ? 0 : (0.5 - budgetFraction) / 0.5;
-  const activity = (cityMobility + congestionLevel) / 2;
-  const uberRevenue = (uberTax / 100) * SIMULATION.uber.revenueRate * activity * 200;
+  const activity = (mobilityScore + congestionLevel) / 2;
+  const uberRevenue = (uberTax / 100) * uber.revenueRate * activity * 200;
   const busCost = (busSubsidy / 100) * bus.costRate * activity * 200;
-  const acCost = (acLevel / 100) * ac.costRate * (0.3 + tempDiscomfort * 0.7) * 200;
+  const acCost = (acLevel / 100) * SIMULATION.ac.costRate * (0.2 + tempDiscomfort * 0.8) * 200;
   const monthlyDelta = +(uberRevenue - busCost - acCost).toFixed(3);
 
-  // ── HAPPINESS ──────────────────────────────────────────────
-  const hw = happiness;
-  const poorHappiness = Math.min(hw.max, Math.max(hw.min,
-    baseline.poorHappiness
-    + (poorMobility - baseline.poorMobility) * hw.poor.mobilityWeight
-    - (congestionLevel - baseline.congestionLevel) * hw.poor.congestionWeight
-    + poorACBonus * hw.poor.acComfortWeight
-    - budgetStress * 30 * hw.poor.budgetStressWeight
+  // ── HAPPINESS ────────────────────────────────────────────────
+  const mobilityGain = mobilityScore - baseline.mobilityScore;
+  const congestionPain = congestionLevel - baseline.congestionLevel;
+  const happinessScore = Math.min(happiness.max, Math.max(happiness.min,
+    baseline.happinessScore
+    + mobilityGain * happiness.mobilityWeight
+    - congestionPain * happiness.congestionWeight
+    - budgetStress * 25 * happiness.budgetStressWeight
   ));
-  const richHappiness = Math.min(hw.max, Math.max(hw.min,
-    baseline.richHappiness
-    + (richMobility - baseline.richMobility) * hw.rich.mobilityWeight
-    - (congestionLevel - baseline.congestionLevel) * hw.rich.congestionWeight
-    + richACBonus * hw.rich.acComfortWeight
-    - budgetStress * 25 * hw.rich.budgetStressWeight
-  ));
-  const cityHappiness = CITY_META.poorFraction * poorHappiness + CITY_META.richFraction * richHappiness;
 
-  const busIsConstraining = (poorMobilityB4Bus >= bus.mobilityFlipPoint || richMobilityB4Bus >= bus.mobilityFlipPoint) && busSubsidy > 0;
+  const busIsConstraining = mobilityBeforeBus >= bus.mobilityFlipPoint && busSubsidy > 0;
   const weatherAlert = tempDiscomfort > 0.6 && acLevel < 30;
 
   return {
-    poorMobility, richMobility, cityMobility,
-    congestionLevel, equityScore,
-    poorHappiness, richHappiness, cityHappiness,
+    mobilityScore, congestionLevel, happinessScore,
     monthlyDelta, uberRevenue, busCost, acCost,
-    budgetStress, busIsConstraining, weatherAlert,
-    tempDiscomfort, collapseActive,
-    poorMobilityB4Bus,
+    budgetStress, busIsConstraining, weatherAlert, collapseActive,
+    tempDiscomfort, mobilityBeforeBus,
   };
 }
 
-// CHANGE 6: Causal year-end failure diagnosis
+// Causal year-end failure diagnosis
 function diagnoseRun(history, finalBudget) {
-  const avgPoor = history.reduce((s, m) => s + m.poorMobility, 0) / history.length;
-  const avgRich = history.reduce((s, m) => s + m.richMobility, 0) / history.length;
+  const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / history.length;
   const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / history.length;
   const avgU = history.reduce((s, m) => s + m.uberTax, 0) / history.length;
   const avgB = history.reduce((s, m) => s + m.busSubsidy, 0) / history.length;
-  const avgH = history.reduce((s, m) => s + m.cityHappiness, 0) / history.length;
-  const avgE = history.reduce((s, m) => s + m.equityScore, 0) / history.length;
+  const avgH = history.reduce((s, m) => s + m.happinessScore, 0) / history.length;
   const budFrac = finalBudget / BUDGET_CONFIG.annualBudget;
-  const worstIdx = history.reduce((wi, m, i) => m.cityHappiness < history[wi].cityHappiness ? i : wi, 0);
+  const worstIdx = history.reduce((wi, m, i) => m.happinessScore < history[wi].happinessScore ? i : wi, 0);
   const worst = { ...history[worstIdx], idx: worstIdx };
   const failures = [];
 
-  if (avgPoor < 40 && avgU > 55) {
-    failures.push({
-      icon: "🚕", color: C.red, bg: C.redBg, border: C.redBorder,
-      title: "Uber tax hammered poor citizens",
-      body: `Your average Uber tax was ${Math.round(avgU)}%. Poor citizens bore the brunt: their average mobility was ${Math.round(avgPoor)}, far below the wealthy (${Math.round(avgRich)}). Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.cityHappiness)}). The fix: reinvest tax revenue into buses and AC.`,
-      research: "Cairo study: poor citizens have ~2.4× higher price elasticity than wealthy. A uniform Uber tax is a regressive instrument without compensating bus investment.",
-    });
-  }
+  // Check for seasonal bus collapse
   const extremeMonths = history.filter((_, i) => Math.abs(SEASONS.tempIndex[i]) >= 0.7);
-  const collapseMonths = extremeMonths.filter(m => m.acLevel < 25 && m.poorMobility < 38);
+  const collapseMonths = extremeMonths.filter(m => m.acLevel < 25 && m.mobilityScore < 40);
   if (collapseMonths.length >= 2) {
     failures.push({
       icon: "🌡️", color: C.amber, bg: C.amberBg, border: C.amberBorder,
-      title: "Seasonal bus collapse hurt poor riders",
-      body: `In ${collapseMonths.length} extreme weather months, AC was below 25% — triggering a bus collapse. Poor citizens couldn't afford taxed Uber and faced hot or cold buses. This is the "Weathering the Ride" finding made real.`,
-      research: "Christensen & Osman (2023): temperature increases shift bus riders to ride-hailing. Without AC, poor riders — who can't afford the alternative — are simply stranded.",
+      title: "Seasonal bus collapse",
+      body: `In ${collapseMonths.length} extreme weather months, AC was below 25% — triggering a bus collapse. Riders switched to Uber, congestion rose, and mobility fell sharply. This is the "Weathering the Ride" finding in action.`,
+      research: "Christensen & Osman (2023): temperature increases shift bus riders to ride-hailing. Without AC, the only viable alternative is a taxed Uber — which hurts everyone.",
     });
   }
-  if (avgE < 50) {
+  if (avgM < 44 && avgU > 55) {
     failures.push({
-      icon: "⚖️", color: C.purple, bg: C.purpleBg, border: C.purpleBorder,
-      title: "Persistent equity gap — two-tier city",
-      body: `Average equity score was ${Math.round(avgE)} — a sustained rich/poor mobility gap. Rich averaged ${Math.round(avgRich)} mobility, poor averaged ${Math.round(avgPoor)}. Uber tax revenue was not adequately recycled into buses and AC.`,
-      research: "The research finding: lower-income price elasticity is ~2.4× higher than wealthy. Uniform revenue instruments without targeted reinvestment widen the gap.",
+      icon: "🚕", color: C.red, bg: C.redBg, border: C.redBorder,
+      title: "Uber tax crushed mobility",
+      body: `Average Uber tax was ${Math.round(avgU)}% — well into the cliff zone. Average mobility was ${Math.round(avgM)}. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). Stay in the 30–50% sweet spot.`,
+      research: "Cairo study: moderate price changes have little mobility effect. Large changes cause sharp substitution — the non-linear zone you hit.",
     });
   }
   if (avgC > 65 && avgU < 25) {
     failures.push({
       icon: "🚗", color: C.textMuted, bg: C.insetBg, border: C.border,
       title: "Congestion went unchecked",
-      body: `Average congestion was ${Math.round(avgC)} with only ${Math.round(avgU)}% Uber tax. A city of 200k with low Uber tax means heavy traffic — eroding happiness for rich citizens and slowing buses for poor riders.`,
-      research: "Cairo equilibrium model: market-level Uber price reduction raises external costs by ~0.7% of city GDP. Low tax on a large city compounds quickly.",
+      body: `Average congestion was ${Math.round(avgC)} with only ${Math.round(avgU)}% Uber tax. A city of 200k with low tax and extreme weather means heavy traffic. Even 25–35% tax would have cleared congestion and earned revenue.`,
+      research: "Cairo equilibrium model: market-level Uber price reduction raises external costs by ~0.7% of city GDP. Low tax compounds quickly in large cities.",
     });
   }
   if (budFrac < 0.10 && avgB > 55) {
     failures.push({
       icon: "💸", color: C.blue, bg: C.blueBg, border: C.blueBorder,
       title: "Spending outpaced tax revenue",
-      body: `Budget ended at $${finalBudget.toFixed(1)}M with average bus subsidy ${Math.round(avgB)}%. Three cost streams (bus, AC, plus reduced Uber activity) need to be balanced against a single income stream.`,
-      research: "Transport subsidy costs scale with ridership. Consistent, calibrated tax rates beat erratic high/low swings.",
+      body: `Budget ended at $${finalBudget.toFixed(1)}M. Three cost streams (bus, AC, lost Uber activity) vs one income stream. Average bus subsidy was ${Math.round(avgB)}% — calibrate against Uber tax revenue.`,
+      research: "Transport subsidy costs scale with ridership. Consistent, calibrated rates beat erratic high/low swings.",
     });
   }
   if (failures.length === 0 && avgH < 63) {
     failures.push({
       icon: "😐", color: C.textMuted, bg: C.insetBg, border: C.border,
       title: "Cautious policy, cautious results",
-      body: `No single disaster — but no bold reinvestment either. Average happiness ${Math.round(avgH)}, equity ${Math.round(avgE)}. With three levers, there's a self-funding sweet spot: ~40% Uber tax funding ~50% bus subsidy + ~50% AC in extreme months.`,
-      research: "Optimal transport policy requires calibrated intervention. Moderate everything is not the same as balanced.",
+      body: `No single disaster — but no bold seasonal planning either. Average happiness ${Math.round(avgH)}. Sweet spot: ~40% Uber tax, ~50% bus subsidy, ~60% AC in extreme months.`,
+      research: "Optimal transport policy requires calibrated seasonal intervention — not just consistent averages.",
     });
   }
-  return { failures, worstMonth: MONTHS[worst.idx], worstHappiness: Math.round(worst.cityHappiness) };
+  return { failures, worstMonth: MONTHS[worst.idx], worstHappiness: Math.round(worst.happinessScore) };
 }
 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
@@ -360,11 +285,10 @@ function getMonthEndMessage(stats, uberTax, bus, ac, budgetFraction, timedOut, r
   const ti = SEASONS.tempIndex[roundIndex];
   if (stats.weatherAlert && ti > 0.5) return pickRandom(ADVISOR.monthEndReactions.heatNeedingAC);
   if (stats.weatherAlert && ti < -0.5) return pickRandom(ADVISOR.monthEndReactions.coldNeedingAC);
-  if (stats.equityScore < SIMULATION.thresholds.equity.warning) return pickRandom(ADVISOR.monthEndReactions.equityGap);
   const t = SIMULATION.thresholds;
-  if (stats.cityHappiness >= t.happiness.good) return pickRandom(ADVISOR.monthEndReactions.highHappiness);
+  if (stats.happinessScore >= t.happiness.good) return pickRandom(ADVISOR.monthEndReactions.highHappiness);
   if (stats.congestionLevel >= t.congestion.warning) return pickRandom(ADVISOR.monthEndReactions.highCongestion);
-  if (stats.cityMobility <= t.mobility.warning) return pickRandom(ADVISOR.monthEndReactions.lowMobility);
+  if (stats.mobilityScore <= t.mobility.warning) return pickRandom(ADVISOR.monthEndReactions.lowMobility);
   if (stats.monthlyDelta > 0) return pickRandom(ADVISOR.monthEndReactions.revenueGain);
   return pickRandom(ADVISOR.monthEndReactions.balanced);
 }
@@ -407,7 +331,7 @@ function InfoTip({ text }) {
   );
 }
 
-function GaugeBar({ label, value, type, tooltip, extra, subLabel }) {
+function GaugeBar({ label, value, type, tooltip, extra }) {
   const color = gc(value, type);
   const barW = type === "budget" ? value * 100 : Math.round(value);
   const display = type === "budget" ? `$${(value * BUDGET_CONFIG.annualBudget).toFixed(1)}M` : Math.round(value);
@@ -416,7 +340,6 @@ function GaugeBar({ label, value, type, tooltip, extra, subLabel }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
-          {subLabel && <span style={{ fontSize: 9, color: C.textFaint }}>{subLabel}</span>}
           <InfoTip text={tooltip} />
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
@@ -431,44 +354,12 @@ function GaugeBar({ label, value, type, tooltip, extra, subLabel }) {
   );
 }
 
-function SplitGauge({ poorVal, richVal, tooltip }) {
-  const poorColor = gc(poorVal, "mobility");
-  const richColor = gc(richVal, "mobility");
-  return (
-    <div style={{ marginBottom: 11 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase" }}>Mobility Split</span>
-          <InfoTip text={tooltip} />
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 10, color: C.textMuted }}>Poor</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: poorColor }}>{Math.round(poorVal)}</span>
-          <span style={{ fontSize: 10, color: C.textFaint }}>·</span>
-          <span style={{ fontSize: 10, color: C.textMuted }}>Rich</span>
-          <span style={{ fontSize: 16, fontWeight: 700, color: richColor }}>{Math.round(richVal)}</span>
-        </div>
-      </div>
-      <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${Math.round(poorVal)}%`, background: poorColor, borderRadius: 3, transition: "width 0.35s ease" }} />
-      </div>
-      <div style={{ height: 4, marginTop: 2, background: C.track, borderRadius: 3, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${Math.round(richVal)}%`, background: richColor, opacity: 0.45, borderRadius: 3, transition: "width 0.35s ease" }} />
-      </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
-        <span>← Poor (60%)</span><span>Rich (40%) →</span>
-      </div>
-    </div>
-  );
-}
-
-// CHANGE 2: Bus mode badge
-function BusModeBadge({ poorMobilityB4Bus, busSubsidy }) {
+function BusModeBadge({ mobilityBeforeBus, busSubsidy }) {
   if (busSubsidy === 0) return null;
-  const boosting = poorMobilityB4Bus < SIMULATION.bus.mobilityFlipPoint;
+  const boosting = mobilityBeforeBus < SIMULATION.bus.mobilityFlipPoint;
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: boosting ? C.greenBg : C.redBg, border: `1px solid ${boosting ? C.greenBorder : C.redBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: boosting ? C.green : C.red, marginBottom: 5 }}>
-      {boosting ? "🟢 Boosting poor mobility" : "🔴 Constraining poor mobility"}
+      {boosting ? "🟢 Boosting mobility" : "🔴 Constraining mobility"}
     </div>
   );
 }
@@ -492,6 +383,16 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
         <span>0%</span><span>50%</span><span>100%</span>
       </div>
+    </div>
+  );
+}
+
+function TaxZoneWarning({ tax }) {
+  if (tax <= 30) return null;
+  const steep = tax <= 60;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: steep ? C.amberBg : C.redBg, border: `1px solid ${steep ? C.amberBorder : C.redBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: steep ? C.amber : C.red, marginTop: 4 }}>
+      {steep ? "⚠️ Steep zone — mobility dropping noticeably" : "🔴 Cliff — mobility falling sharply past 60%"}
     </div>
   );
 }
@@ -590,7 +491,6 @@ function MonthEndingOverlay({ month }) {
   );
 }
 
-// CHANGE 3: Political loss screen
 function PoliticalLossScreen({ month, onRestart, onContinue }) {
   return (
     <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: 24 }}>
@@ -598,8 +498,8 @@ function PoliticalLossScreen({ month, onRestart, onContinue }) {
         <div style={{ fontSize: 54, marginBottom: 10 }}>🗳️</div>
         <div style={{ fontSize: 11, letterSpacing: 3, color: C.purple, textTransform: "uppercase", marginBottom: 8, fontWeight: 800 }}>Political Ejection</div>
         <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 10px" }}>You've been voted out</h2>
-        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below 30. Riverdale needs a new Transport Director.</p>
-        <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>Removed in <strong>{month}</strong>. Sustained low happiness signals policy failure — not just a bad month.</p>
+        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below 30. Smallville needs a new Transport Director.</p>
+        <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>Removed in <strong>{month}</strong>. Sustained low happiness — especially in extreme weather months — signals policy failure.</p>
         <div style={{ marginBottom: 22 }}><AdvisorBox message="Three consecutive months of deep unhappiness is a political signal. Check whether the Uber tax was too high without bus and AC compensation." /></div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onRestart} style={{ flex: 1, background: C.purple, color: "#fff", border: "none", borderRadius: 9, padding: "13px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>↺ Try Again</button>
@@ -616,11 +516,11 @@ function GameOverScreen({ month, onRestart, onContinue }) {
       <div style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 52, marginBottom: 10 }}>💸</div>
         <div style={{ fontSize: 10, letterSpacing: 4, color: C.red, textTransform: "uppercase", marginBottom: 8 }}>Budget Depleted</div>
-        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Riverdale Bankrupt</h2>
+        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Smallville Bankrupt</h2>
         <p style={{ fontSize: 13, color: C.textSub, lineHeight: 1.7, marginBottom: 22 }}>
           The city ran out of funds in <strong>{month}</strong>. Bus and AC costs outpaced Uber tax revenue.
         </p>
-        <div style={{ marginBottom: 22 }}><AdvisorBox message="Three cost streams need to be balanced against one income stream. Raise the Uber tax — it's your only source of revenue." /></div>
+        <div style={{ marginBottom: 22 }}><AdvisorBox message="Three cost streams need to balance against one income stream. Raise the Uber tax — it's your only source of revenue." /></div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onRestart} style={{ flex: 1, background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>↺ Start Over</button>
           <button onClick={onContinue} style={{ flex: 1, background: C.cardBg, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Continue (no score)</button>
@@ -637,14 +537,14 @@ function IntroScreen({ onStart }) {
   return (
     <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: 20 }}>
       <div style={{ maxWidth: 460, textAlign: "center" }}>
-        <div style={{ fontSize: 50, marginBottom: 10 }}>🏙️</div>
+        <div style={{ fontSize: 50, marginBottom: 10 }}>🌡️</div>
         <div style={{ fontSize: 10, letterSpacing: 4, color: C.blue, textTransform: "uppercase", marginBottom: 10 }}>Transport Tycoon · City 2</div>
         <h1 style={{ fontSize: 38, fontWeight: 800, color: C.text, margin: "0 0 5px" }}>{CITY_META.name}</h1>
         <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 20, fontStyle: "italic" }}>{CITY_META.subtitle}</p>
         <div style={{ marginBottom: 20 }}><AdvisorBox message={ADVISOR.gameIntro} /></div>
         <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.75, marginBottom: 22 }}>{CITY_META.intro}</p>
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 24 }}>
-          {[["👥", "200k people"], ["⚖️", "60% poor · 40% rich"], ["💰", "$30M budget"], ["📅", "12 months"], ["⏱", "25 sec/month"], ["🚕", "Uber tax earns $"], ["🚌", "Bus subsidy costs $"], ["❄️", "AC costs $"]].map(([icon, label]) => (
+          {[["👥", "200k people"], ["💰", "$30M budget"], ["📅", "12 months"], ["⏱", "25 sec/month"], ["🚕", "Uber tax earns $"], ["🚌", "Bus subsidy costs $"], ["❄️🔥", "AC costs $ (scales with weather)"]].map(([icon, label]) => (
             <div key={label} style={{ background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 7, padding: "6px 10px", fontSize: 10, color: C.textSub }}>{icon} {label}</div>
           ))}
         </div>
@@ -712,17 +612,17 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
           <div style={{ height: "100%", width: `${(roundIndex / 12) * 100}%`, background: C.blue, transition: "width 0.4s" }} />
         </div>
 
-        {/* CHANGE 2: AC collapse warning banner */}
+        {/* AC Collapse Warning */}
         {live.collapseActive && (
-          <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-            <span style={{ fontSize: 11, color: C.amber, fontWeight: 700 }}>Extreme weather — AC below 25% is triggering a bus collapse for poor riders · COLLAPSE ACTIVE 🔴</span>
+            <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>🔴 COLLAPSE ACTIVE — Extreme weather + AC below 25% is emptying buses. Riders are switching to Uber en masse.</span>
           </div>
         )}
         {!live.collapseActive && live.weatherAlert && (
-          <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-            <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>Extreme weather — buses uncomfortable without AC. Poor citizens hit hardest.</span>
+            <span style={{ fontSize: 11, color: C.amber, fontWeight: 700 }}>⚠️ Extreme weather — buses uncomfortable. Raising AC will keep riders on buses and reduce congestion.</span>
           </div>
         )}
 
@@ -734,19 +634,25 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
             <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Set Policy</span>
             {locked && <span style={{ fontSize: 10, color: C.red, fontWeight: 800 }}>🔒 LOCKED</span>}
           </div>
-          <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor} tooltip={ADVISOR.tooltips.uberTax} locked={locked} tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }} />
-          <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor} tooltip={ADVISOR.tooltips.busSubsidy} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            badge={<BusModeBadge poorMobilityB4Bus={live.poorMobilityB4Bus} busSubsidy={busSubsidy} />} />
-          <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor} tooltip={ADVISOR.tooltips.acLevel} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }} />
+          <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
+            tooltip={ADVISOR.tooltips.uberTax} locked={locked}
+            tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
+            badge={<TaxZoneWarning tax={uberTax} />} />
+          <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
+            tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
+            tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
+            badge={<BusModeBadge mobilityBeforeBus={live.mobilityBeforeBus} busSubsidy={busSubsidy} />} />
+          <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor}
+            tooltip={ADVISOR.tooltips.acLevel} locked={locked}
+            tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }} />
           <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
         </div>
 
         {/* Live preview */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Live Preview</div>
-          <GaugeBar label="Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
-          <SplitGauge poorVal={live.poorMobility} richVal={live.richMobility} tooltip={ADVISOR.tooltips.mobility} />
-          <GaugeBar label="Equity" value={live.equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} />
+          <GaugeBar label="Happiness" value={live.happinessScore} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
+          <GaugeBar label="Mobility" value={live.mobilityScore} type="mobility" tooltip={ADVISOR.tooltips.mobility} />
           <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
           <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
         </div>
@@ -761,9 +667,8 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
 }
 
 function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, advisorMessage, onNext, history, timedOut, budgetRemaining }) {
-  const { poorMobility, richMobility, congestionLevel, equityScore, cityHappiness, monthlyDelta, uberRevenue, busCost, acCost } = stats;
-  const ytdH = Math.round(history.reduce((s, m) => s + m.cityHappiness, 0) / history.length);
-  const ytdE = Math.round(history.reduce((s, m) => s + m.equityScore, 0) / history.length);
+  const { mobilityScore, congestionLevel, happinessScore, monthlyDelta, uberRevenue, busCost, acCost } = stats;
+  const ytdH = Math.round(history.reduce((s, m) => s + m.happinessScore, 0) / history.length);
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
   const isLast = roundIndex === 11;
   const pos = monthlyDelta >= 0;
@@ -800,16 +705,15 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
 
         {/* Stat pills */}
         <div style={{ display: "flex", gap: 7, marginBottom: 10 }}>
-          <StatPill label="Happiness" value={cityHappiness} color={gc(cityHappiness, "happiness")} small />
-          <StatPill label="Equity" value={equityScore} color={gc(equityScore, "equity")} small />
+          <StatPill label="Happiness" value={happinessScore} color={gc(happinessScore, "happiness")} small />
+          <StatPill label="Mobility" value={mobilityScore} color={gc(mobilityScore, "mobility")} small />
           <StatPill label="Congestion" value={congestionLevel} color={gc(congestionLevel, "congestion")} small />
           <StatPill label="Budget" value={`$${budgetRemaining.toFixed(1)}M`} color={gc(budgetFraction, "budget")} small />
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
-          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
-          <SplitGauge poorVal={poorMobility} richVal={richMobility} tooltip={ADVISOR.tooltips.mobility} />
-          <GaugeBar label="Equity" value={equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} />
+          <GaugeBar label="Happiness" value={happinessScore} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
+          <GaugeBar label="Mobility" value={mobilityScore} type="mobility" tooltip={ADVISOR.tooltips.mobility} />
           <GaugeBar label="Congestion" value={congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
           <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
         </div>
@@ -820,8 +724,8 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
             <div style={{ fontSize: 16, fontWeight: 800, color: gc(ytdH, "happiness") }}>{ytdH}</div>
           </div>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 9, color: C.textFaint }}>YTD Equity</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: gc(ytdE, "equity") }}>{ytdE}</div>
+            <div style={{ fontSize: 9, color: C.textFaint }}>Season</div>
+            <div style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 9, color: C.textFaint }}>Budget Left</div>
@@ -840,13 +744,12 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
 }
 
 function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
-  const avgH = history.reduce((s, m) => s + m.cityHappiness, 0) / history.length;
-  const avgE = history.reduce((s, m) => s + m.equityScore, 0) / history.length;
+  const avgH = history.reduce((s, m) => s + m.happinessScore, 0) / history.length;
+  const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / history.length;
   const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / history.length;
-  const avgPoorM = history.reduce((s, m) => s + m.poorMobility, 0) / history.length;
   const budgetEff = (finalBudget / BUDGET_CONFIG.annualBudget) * 100;
-  const { weights } = SCORING;
-  const finalScore = scoreless ? 0 : avgH * weights.happiness + avgE * weights.equity + budgetEff * weights.budget;
+  const bonus = scoreless ? 0 : Math.max(0, (finalBudget / BUDGET_CONFIG.annualBudget) * 100 * BUDGET_CONFIG.budgetBonusWeight);
+  const finalScore = scoreless ? 0 : Math.min(100, Math.round(avgH + bonus));
   const grade = getGrade(scoreless ? 0 : finalScore);
   const budgetSpent = BUDGET_CONFIG.annualBudget - finalBudget;
   const { failures, worstMonth, worstHappiness } = diagnoseRun(history, finalBudget);
@@ -854,11 +757,11 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
 
   const chartData = history.map((m, i) => ({
     month: MONTHS[i].slice(0, 3),
-    happiness: Math.round(m.cityHappiness),
-    equity: Math.round(m.equityScore),
-    poor: Math.round(m.poorMobility),
-    rich: Math.round(m.richMobility),
+    happiness: Math.round(m.happinessScore),
+    mobility: Math.round(m.mobilityScore),
+    congestion: Math.round(m.congestionLevel),
     delta: +m.monthlyDelta.toFixed(2),
+    icon: SEASONS.seasonIcon[i],
   }));
 
   return (
@@ -871,57 +774,30 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
             : <div style={{ fontSize: 86, fontWeight: 800, color: grade.color, lineHeight: 1 }}>{grade.grade}</div>}
           <div style={{ fontSize: 16, color: C.textSub, marginTop: 5, fontWeight: 600 }}>{scoreless ? "City ran out of funds" : grade.label}</div>
           {!scoreless && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 3 }}>
-            Score: {Math.round(finalScore)} = H {Math.round(avgH)}×{weights.happiness} + E {Math.round(avgE)}×{weights.equity} + B {Math.round(budgetEff)}×{weights.budget}
+            Score: {finalScore} = happiness {Math.round(avgH)} + budget bonus {Math.round(bonus)}
           </div>}
         </div>
 
         <div style={{ display: "flex", gap: 7, marginBottom: 16 }}>
           <StatPill label="Avg Happiness" value={avgH} color={gc(avgH, "happiness")} small />
-          <StatPill label="Avg Equity" value={avgE} color={gc(avgE, "equity")} small />
+          <StatPill label="Avg Mobility" value={avgM} color={gc(avgM, "mobility")} small />
           <StatPill label="Avg Congestion" value={avgC} color={gc(avgC, "congestion")} small />
           <StatPill label="Budget Spent" value={`$${budgetSpent.toFixed(1)}M`} color={gc(finalBudget / BUDGET_CONFIG.annualBudget, "budget")} small />
         </div>
 
-        {/* Happiness + Equity chart */}
+        {/* Happiness chart */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 14px 8px", marginBottom: 14, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Happiness & Equity — 12 Months</div>
-          <ResponsiveContainer width="100%" height={130}>
-            <LineChart data={chartData} margin={{ top: 5, right: 5, left: -24, bottom: 0 }}>
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: C.textFaint }} axisLine={false} tickLine={false} />
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Happiness — 12 Months</div>
+          <ResponsiveContainer width="100%" height={110}>
+            <BarChart data={chartData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+              <XAxis dataKey="month" tick={{ fontSize: 9, fill: C.textFaint }} axisLine={false} tickLine={false} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: C.textFaint }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 11 }} />
-              <Line type="monotone" dataKey="happiness" stroke={C.green} strokeWidth={2} dot={false} name="Happiness" />
-              <Line type="monotone" dataKey="equity" stroke={C.purple} strokeWidth={2} dot={false} name="Equity" />
-            </LineChart>
+              <Tooltip contentStyle={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 11 }} formatter={v => [v, "Happiness"]} />
+              <Bar dataKey="happiness" radius={[3, 3, 0, 0]}>
+                {chartData.map((e, i) => <Cell key={i} fill={gc(e.happiness, "happiness")} />)}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
-          <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 4 }}>
-            {[[C.green, "Happiness"], [C.purple, "Equity"]].map(([col, l]) => (
-              <div key={l} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: C.textMuted }}>
-                <div style={{ width: 16, height: 2, background: col }} />{l}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Poor/Rich mobility chart */}
-        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 14px 8px", marginBottom: 14, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Poor vs Rich Mobility — 12 Months</div>
-          <ResponsiveContainer width="100%" height={100}>
-            <LineChart data={chartData} margin={{ top: 5, right: 5, left: -24, bottom: 0 }}>
-              <XAxis dataKey="month" tick={{ fontSize: 10, fill: C.textFaint }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: C.textFaint }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 11 }} />
-              <Line type="monotone" dataKey="poor" stroke={C.amber} strokeWidth={2} dot={false} name="Poor" />
-              <Line type="monotone" dataKey="rich" stroke={C.blue} strokeWidth={2} dot={false} name="Rich" />
-            </LineChart>
-          </ResponsiveContainer>
-          <div style={{ display: "flex", gap: 14, justifyContent: "center", marginTop: 4 }}>
-            {[[C.amber, "Poor (60%)"], [C.blue, "Rich (40%)"]].map(([col, l]) => (
-              <div key={l} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: C.textMuted }}>
-                <div style={{ width: 16, height: 2, background: col }} />{l}
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Budget chart */}
@@ -939,7 +815,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
           </ResponsiveContainer>
         </div>
 
-        {/* CHANGE 6: Failure diagnosis */}
+        {/* Failure diagnosis */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🔍 What Held You Back</div>
           <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>Worst month: <strong style={{ color: C.text }}>{worstMonth}</strong> (happiness {worstHappiness}). Here's what the data shows:</p>
@@ -968,7 +844,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 14, overflowX: "auto", boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Monthly Policy Log</div>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
-            <thead><tr>{["Month", "Season", "UberTax", "Bus", "AC", "BudgetΔ", "Happy", "Equity"].map(h => (
+            <thead><tr>{["Month", "Season", "UberTax", "Bus", "AC", "BudgetΔ", "Happiness", "Mobility", "Congestion"].map(h => (
               <th key={h} style={{ color: C.textMuted, fontWeight: 800, textAlign: "left", paddingBottom: 6, borderBottom: `2px solid ${C.border}`, paddingRight: 6, textTransform: "uppercase", fontSize: 9 }}>{h}</th>
             ))}</tr></thead>
             <tbody>{history.map((m, i) => (
@@ -979,8 +855,9 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
                 <td style={{ color: C.blue, fontWeight: 700, paddingRight: 6 }}>{m.busSubsidy}%</td>
                 <td style={{ color: C.acColor, fontWeight: 700, paddingRight: 6 }}>{m.acLevel}%</td>
                 <td style={{ color: m.monthlyDelta >= 0 ? C.green : C.red, fontWeight: 700, paddingRight: 6 }}>{m.monthlyDelta >= 0 ? "+" : ""}{m.monthlyDelta.toFixed(1)}M</td>
-                <td style={{ color: gc(m.cityHappiness, "happiness"), fontWeight: 700, paddingRight: 6 }}>{Math.round(m.cityHappiness)}</td>
-                <td style={{ color: gc(m.equityScore, "equity") }}>{Math.round(m.equityScore)}</td>
+                <td style={{ color: gc(m.happinessScore, "happiness"), fontWeight: 700, paddingRight: 6 }}>{Math.round(m.happinessScore)}</td>
+                <td style={{ color: gc(m.mobilityScore, "mobility"), paddingRight: 6 }}>{Math.round(m.mobilityScore)}</td>
+                <td style={{ color: gc(m.congestionLevel, "congestion") }}>{Math.round(m.congestionLevel)}</td>
               </tr>
             ))}</tbody>
           </table>
@@ -990,10 +867,10 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
         <div style={{ background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 12, padding: "14px", marginBottom: 14 }}>
           <div style={{ fontSize: 11, letterSpacing: 2, color: C.blue, textTransform: "uppercase", marginBottom: 12, fontWeight: 800 }}>📖 What the Research Says</div>
           <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, margin: "0 0 10px" }}>{DEBRIEF.coreInsight}</p>
-          <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, borderLeft: `3px solid ${C.purple}`, paddingLeft: 10, margin: "0 0 10px" }}>{DEBRIEF.equityInsight}</p>
           <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, borderLeft: `3px solid ${C.cyan}`, paddingLeft: 10, margin: "0 0 10px" }}>{DEBRIEF.seasonInsight}</p>
+          {avgH >= 65 && <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, borderLeft: `3px solid ${C.green}`, paddingLeft: 10, margin: "0 0 10px" }}>{DEBRIEF.balanceInsight}</p>}
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 7, padding: "9px 12px", marginTop: 10 }}>
-            <div style={{ fontSize: 10, color: C.blue, marginBottom: 4, fontWeight: 800 }}>🏙️ Up Next: City 3 — New Meridian</div>
+            <div style={{ fontSize: 10, color: C.blue, marginBottom: 4, fontWeight: 800 }}>🏙️ Up Next: City 3</div>
             <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6 }}>{DEBRIEF.city3Teaser}</div>
           </div>
           <div style={{ fontSize: 9, color: C.textFaint, marginTop: 10 }}>{DEBRIEF.source}</div>
@@ -1008,7 +885,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
 // ============================================================
 //  MAIN GAME CONTROLLER
 // ============================================================
-export default function RiverdaleTycoon() {
+export default function SmallvilleTycoonCity2() {
   const [screen, setScreen] = useState("intro");
   const [roundIndex, setRound] = useState(0);
   const [uberTax, setUber] = useState(0);
@@ -1021,7 +898,6 @@ export default function RiverdaleTycoon() {
   const [budget, setBudget] = useState(BUDGET_CONFIG.annualBudget);
   const [scoreless, setSL] = useState(false);
   const [gameOverMonth, setGOM] = useState("");
-  // CHANGE 3: political ejection state
   const [polMonth, setPolMonth] = useState("");
 
   const handleCommit = useCallback((uberVal, busVal, acVal, wasTimedOut) => {
@@ -1034,9 +910,8 @@ export default function RiverdaleTycoon() {
       setResult(record); setMsg(msg); setTO(wasTimedOut);
       setHistory(h => {
         const nh = [...h, record];
-        // CHANGE 3: 3 consecutive months below political floor
         const streak = nh.slice(-SIMULATION.politicalStreakNeeded)
-          .filter(r => r.cityHappiness < SIMULATION.politicalFloor).length;
+          .filter(r => r.happinessScore < SIMULATION.politicalFloor).length;
         if (streak >= SIMULATION.politicalStreakNeeded && nh.length >= SIMULATION.politicalStreakNeeded) {
           setPolMonth(MONTHS[nh.length - 1]);
           setScreen("politicalLoss");

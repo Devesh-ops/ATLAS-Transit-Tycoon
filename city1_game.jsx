@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 // ============================================================
-//  DESIGN TOKENS  (new warm palette)
+//  DESIGN TOKENS
 // ============================================================
 const C = {
   pageBg: "#F7F4EF", cardBg: "#FFFFFF", insetBg: "#EAE6DE",
@@ -22,21 +22,19 @@ const C = {
 // ============================================================
 const CITY_META = {
   name: "Smallville",
-  subtitle: "A quiet city learning to move",
+  subtitle: "Where autonomous vehicles just arrived",
   population: 50000,
-  intro: `A city of 50,000 people. Everyone travels by ride-hailing or bus. You have a $12M annual budget. You have two levers: tax Uber rides (raises revenue, reduces congestion, but hurts mobility) and subsidize buses (costs money, helps mobility below 50, always cuts congestion). Balance the tradeoffs — and watch the clock.`,
+  intro: `Smallville has 50,000 people. Autonomous vehicles just flooded the city — Uber prices have crashed, everyone is using them, and congestion is rising. You have a $12M annual budget. Watch the first two months: your Uber tax lever is unavailable until March. Then it's your job to bring things back to normal using two levers — Uber tax (raises revenue, cuts congestion) and bus subsidies (costs money, helps mobility when city is under-mobile).`,
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const TIMER = { monthDuration: 20, warningAt: 5, endingDuration: 1200 };
 
-// CHANGE 1: Non-linear Uber tax replaces flat multiplier.
-// Three zones match the Cairo research finding that large price changes
-// cause sharp mode-switching, while moderate changes barely shift behaviour.
+// Non-linear Uber tax: three zones match Cairo research finding that large price
+// changes cause sharp mode-switching, while moderate changes barely shift behaviour.
 const SIMULATION = {
   baseline: { mobilityScore: 60, congestionLevel: 45, happinessScore: 50 },
   uber: {
-    // kept for congestion calc; mobility now uses uberMobilityLoss() below
     congestionReductionPerPercent: 0.45,
     revenuePerPercent: 0.10,
   },
@@ -58,7 +56,6 @@ const SIMULATION = {
     mobility: { good: 65, warning: 45 },
     budget: { safe: 0.50, warning: 0.20 },
   },
-  // CHANGE 3: Political ejection threshold
   politicalFloor: 30,
   politicalStreakNeeded: 3,
 };
@@ -87,17 +84,17 @@ const SCORING = {
 
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Hi, I'm Maya. You have $12M for the year. Taxing Uber raises revenue AND cuts congestion — but the effect isn't linear. Low tax barely hurts mobility. Push past 60% and it falls off a cliff. Bus subsidies cost money but keep people moving. The real skill: use Uber tax revenue to fund bus subsidies. 20 seconds per month — or hit End Turn.`,
+  gameIntro: `Hi, I'm Maya. Autonomous vehicles just arrived in Smallville — Uber is cheap, everyone's using it, and congestion is climbing. For January and February you can't tax Uber yet — just watch what happens to congestion. From March, the Uber tax lever is yours: it raises revenue AND cuts congestion. Use that revenue to fund bus subsidies. 20 seconds per month — or hit End Turn.`,
   monthStartHints: [
-    "January — the year begins. A modest Uber tax funds your bus subsidy without crippling mobility.",
+    "January — autonomous vehicles just arrived. Uber is cheap and roads are packing up. 🚨 Your Uber tax is locked this month — watch the congestion build. Bus subsidies are still available.",
+    "February — congestion is still rising unchecked. The Uber tax unlocks next month. Use buses if you want, but the real fix is coming.",
+    "March — your Uber tax is now unlocked! Even a modest tax earns revenue AND cuts congestion. This is the moment to start pushing back.",
     "Watch the balance: high Uber tax = good revenue + less congestion, but mobility drops.",
     "Bus subsidies are most effective when mobility is below 50. Above that, fixed routes constrain travel.",
     "Try funding your bus subsidy entirely from Uber tax revenue. Can you break even?",
     "Almost halfway. Is your budget growing, shrinking, or flat?",
     "Mid-year check. Uber tax revenue compounds — consistent policy beats erratic swings.",
     "Research: a 50% Uber price increase shifts riders toward buses, cutting congestion significantly.",
-    "Bus subsidies always ease congestion — even above the mobility flip point.",
-    "The sweet spot: enough Uber tax to fund buses, not so much that mobility collapses.",
     "Three months left. If budget is healthy, you can afford to ease the Uber tax.",
     "Second to last month. Stick to what's working.",
     "Last month! Finish strong — remaining budget adds to your final score.",
@@ -116,9 +113,9 @@ const ADVISOR = {
   tooltips: {
     happiness: "Overall citizen satisfaction. Goes up with mobility, down with congestion and budget stress. Final score averages this across 12 months.",
     mobility: "How much citizens are moving. Uber tax reduces it — but not linearly. Low tax has little effect; above 60% it causes sharp drops. Bus helps when < 50, hurts when > 50.",
-    congestion: "Road congestion. Uber tax reduces it (fewer cars). Bus subsidy also reduces it. Research: pricing Uber up shifts riders to shared transport.",
+    congestion: "Road congestion. AV arrival boosted it in January–February. Uber tax reduces it (fewer cars). Bus subsidy also reduces it. Research: pricing Uber up shifts riders to shared transport.",
     budget: "Remaining annual budget ($12M). Bus subsidies cost money. Uber tax earns money. Net change each month can be positive or negative.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion — but non-linearly reduces mobility. Gentle below 30%, steep 30–60%, punishing above 60%.",
+    uberTax: "Tax on every Uber/AV trip. Earns revenue + cuts congestion — but non-linearly reduces mobility. Gentle below 30%, steep 30–60%, punishing above 60%. Locked for January and February.",
     busSubsidy: "Discount on bus fares. Costs budget. Boosts mobility when city is under-mobile (<50). Constrains mobility when already mobile (>50). Always reduces congestion.",
   },
 };
@@ -129,7 +126,7 @@ const DEBRIEF = {
   mobilityInsight: "Heavy Uber tax without a strong bus alternative leaves people stranded. Research shows enormous latent demand — welfare gains from a 50% Uber price cut equalled ~17% of the average Cairo participant's monthly income. Tax too hard, and that welfare disappears.",
   balanceInsight: "You found the balance: moderate Uber tax funding a meaningful bus subsidy. This is the real-world policy prescription — use ride-hailing taxes to cross-subsidize public transport.",
   budgetInsight: "Uber tax revenue compounds across the year. Consistent modest taxation is more sustainable than lurching between high and low rates.",
-  city2Teaser: "In City 2, not everyone is the same. Rich and poor citizens respond very differently to Uber taxes — and the equity implications are significant.",
+  city2Teaser: "In City 2 — Riverdale — the seasons change everything. Heatwaves and cold snaps drive people off buses and into Ubers. Bus climate control becomes your critical lever.",
   source: `Christensen & Osman (2025) "Demand for Mobility" · Christensen & Osman (2023) "Weathering the Ride"`,
 };
 
@@ -137,7 +134,7 @@ const DEBRIEF = {
 //  SIMULATION ENGINE
 // ============================================================
 
-// CHANGE 1: Non-linear Uber mobility loss
+// Non-linear Uber mobility loss
 // 0–30%: gentle (barely felt)
 // 30–60%: steep middle zone
 // 60–100%: punishing cliff
@@ -147,7 +144,8 @@ function uberMobilityLoss(tax) {
   return 18 + (tax - 60) * 0.70;
 }
 
-function simulate(uberTax, busSubsidy, budgetRemaining) {
+// roundIndex is used to apply the AV congestion boost in January and February
+function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
   const { baseline, uber, bus, happiness } = SIMULATION;
 
   // 1. Mobility — non-linear Uber loss, bus flip mechanic
@@ -158,9 +156,11 @@ function simulate(uberTax, busSubsidy, budgetRemaining) {
     : busSubsidy * -bus.mobilityLossPerPercentAboveFlip;
   const mobilityScore = Math.min(100, Math.max(0, mobilityBeforeBus + busEffect));
 
-  // 2. Congestion — both levers reduce it
+  // 2. Congestion — AV boost for first two months (January, February)
+  //    AVs arrived, prices crashed → extra cars on the road
+  const avBoost = roundIndex < 2 ? 15 : 0;
   const congestionLevel = Math.min(100, Math.max(5,
-    baseline.congestionLevel
+    baseline.congestionLevel + avBoost
     - uberTax * uber.congestionReductionPerPercent
     - busSubsidy * bus.congestionOffsetPerPercent
   ));
@@ -187,18 +187,18 @@ function simulate(uberTax, busSubsidy, budgetRemaining) {
 
   const busIsConstraining = mobilityBeforeBus >= bus.mobilityFlipPoint && busSubsidy > 0;
   const revenuePositive = monthlyDelta > 0;
-
-  // CHANGE 1: which tax zone are we in?
   const taxZone = uberTax <= 30 ? "gentle" : uberTax <= 60 ? "steep" : "cliff";
 
   return { mobilityScore, congestionLevel, happinessScore, monthlyDelta, uberRevenue, busCost, budgetStress, busIsConstraining, revenuePositive, taxZone };
 }
 
-// CHANGE 6: Causal year-end failure diagnosis
+// Causal year-end failure diagnosis
 function diagnoseRun(history, finalBudget) {
+  // Only look at months 2-11 for policy failure (months 0-1 had forced 0% uber)
+  const policyMonths = history.slice(2);
   const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / history.length;
   const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / history.length;
-  const avgU = history.reduce((s, m) => s + m.uberTax, 0) / history.length;
+  const avgU = policyMonths.length > 0 ? policyMonths.reduce((s, m) => s + m.uberTax, 0) / policyMonths.length : 0;
   const avgB = history.reduce((s, m) => s + m.busSubsidy, 0) / history.length;
   const avgH = history.reduce((s, m) => s + m.happinessScore, 0) / history.length;
   const budFrac = finalBudget / BUDGET_CONFIG.annualBudget;
@@ -210,7 +210,7 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "🚕", color: C.red, bg: C.redBg, border: C.redBorder,
       title: "Uber tax crushed mobility",
-      body: `Your average Uber tax was ${Math.round(avgU)}% — well past the 60% cliff where mobility drops sharply. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). The fix: stay in the 30–50% sweet spot to earn revenue without triggering the cliff.`,
+      body: `Your average Uber tax (from March onwards) was ${Math.round(avgU)}% — well past the 60% cliff where mobility drops sharply. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). The fix: stay in the 30–50% sweet spot to earn revenue without triggering the cliff.`,
       research: "Cairo study: moderate price changes have little mobility effect. Large changes cause sharp substitution — the non-linear zone you hit.",
     });
   }
@@ -218,7 +218,7 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "🚗", color: C.amber, bg: C.amberBg, border: C.amberBorder,
       title: "Congestion went unchecked",
-      body: `Average congestion was ${Math.round(avgC)} with an Uber tax of only ${Math.round(avgU)}%. Even a 25–35% tax would have cleared congestion AND earned revenue. Worst month: ${MONTHS[worst.idx]}.`,
+      body: `Average congestion was ${Math.round(avgC)} with an Uber tax of only ${Math.round(avgU)}% from March. Even a 25–35% tax would have cleared congestion AND earned revenue. Worst month: ${MONTHS[worst.idx]}.`,
       research: "Cairo equilibrium model: market-level Uber price reduction raises external costs by ~0.7% of city GDP. Low tax on even a small city compounds quickly.",
     });
   }
@@ -317,7 +317,6 @@ function GaugeBar({ label, value, type, tooltip, extra }) {
   );
 }
 
-// CHANGE 2: Bus mode badge
 function BusModeBadge({ mobilityBeforeBus, busSubsidy }) {
   if (busSubsidy === 0) return null;
   const boosting = mobilityBeforeBus < SIMULATION.bus.mobilityFlipPoint;
@@ -351,7 +350,6 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
   );
 }
 
-// CHANGE 1: Tax zone warning under slider
 function TaxZoneWarning({ tax }) {
   if (tax <= 30) return null;
   const steep = tax <= 60;
@@ -418,7 +416,6 @@ function MonthEndingOverlay({ month }) {
   );
 }
 
-// CHANGE 3: Political loss screen
 function PoliticalLossScreen({ month, onRestart, onContinue }) {
   return (
     <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: 24 }}>
@@ -472,7 +469,7 @@ function IntroScreen({ onStart }) {
         <div style={{ marginBottom: 20 }}><AdvisorBox message={ADVISOR.gameIntro} /></div>
         <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.75, marginBottom: 22 }}>{CITY_META.intro}</p>
         <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 24 }}>
-          {[["👥", "50k people"], ["💰", "$12M budget"], ["📅", "12 months"], ["⏱", "20 sec/month"], ["🚕", "Uber tax earns $"], ["🚌", "Bus subsidy costs $"]].map(([icon, label]) => (
+          {[["🚗", "AVs just arrived"], ["👥", "50k people"], ["💰", "$12M budget"], ["📅", "12 months"], ["⏱", "20 sec/month"], ["🔒", "Uber locked Jan–Feb"], ["🚌", "Bus subsidy costs $"]].map(([icon, label]) => (
             <div key={label} style={{ background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 7, padding: "6px 10px", fontSize: 10, color: C.textSub }}>{icon} {label}</div>
           ))}
         </div>
@@ -495,6 +492,9 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
   useEffect(() => { uberRef.current = uberTax; }, [uberTax]);
   useEffect(() => { busRef.current = busSubsidy; }, [busSubsidy]);
 
+  // Uber is locked for the first two months (January, February)
+  const uberLocked = roundIndex < 2;
+
   const commitMonth = useCallback((wasTimedOut) => {
     if (lockedRef.current) return;
     lockedRef.current = true;
@@ -510,7 +510,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
     return () => clearInterval(iv);
   }, [roundIndex]);
 
-  const live = simulate(uberTax, busSubsidy, budgetRemaining);
+  const live = simulate(uberTax, busSubsidy, budgetRemaining, roundIndex);
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
   const warn = timeLeft <= TIMER.warningAt && timeLeft > 0;
   const uberLoss = uberMobilityLoss(uberTax);
@@ -542,16 +542,35 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
 
         <div style={{ marginBottom: 12 }}><AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} /></div>
 
+        {/* AV Lockout Banner */}
+        {uberLocked && (
+          <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 9, padding: "11px 14px", marginBottom: 10, display: "flex", gap: 10, alignItems: "flex-start" }}>
+            <span style={{ fontSize: 20, flexShrink: 0 }}>🚗</span>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: C.red, textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>
+                Uber / AV Tax Unavailable — Watch Congestion Rise
+              </div>
+              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.5 }}>
+                Autonomous vehicles just flooded the city. Prices crashed, roads are filling up. You can't intervene yet — your Uber tax lever unlocks in <strong>March</strong>. Observe the effect.
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Policy card */}
         <div style={{ background: C.cardBg, border: `1px solid ${warn ? C.red : C.border}`, borderRadius: 12, padding: "18px 18px 8px", marginBottom: 10, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", transition: "border 0.3s" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Set Policy</span>
             {locked && <span style={{ fontSize: 10, color: C.red, fontWeight: 800 }}>🔒 LOCKED</span>}
           </div>
-          <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
-            tooltip={ADVISOR.tooltips.uberTax} locked={locked}
-            tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
-            badge={<TaxZoneWarning tax={uberTax} />} />
+          <SliderInput
+            label="Uber / AV Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
+            tooltip={ADVISOR.tooltips.uberTax} locked={locked || uberLocked}
+            tag={uberLocked
+              ? { text: "🔒 unlocks March", bg: C.redBg, color: C.red, border: C.redBorder }
+              : { text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
+            badge={!uberLocked && <TaxZoneWarning tax={uberTax} />}
+          />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
             tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
@@ -603,6 +622,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
           <div style={{ flex: 1, background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 9, padding: "11px", textAlign: "center" }}>
             <div style={{ fontSize: 10, color: C.red, textTransform: "uppercase", letterSpacing: 1, fontWeight: 800 }}>Uber Tax</div>
             <div style={{ fontSize: 28, fontWeight: 800, color: C.uberColor }}>{uberTax}%</div>
+            {roundIndex < 2 && <div style={{ fontSize: 9, color: C.textFaint }}>locked this month</div>}
           </div>
           <div style={{ flex: 1, background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 9, padding: "11px", textAlign: "center" }}>
             <div style={{ fontSize: 10, color: C.blue, textTransform: "uppercase", letterSpacing: 1, fontWeight: 800 }}>Bus Subsidy</div>
@@ -730,7 +750,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
           </ResponsiveContainer>
         </div>
 
-        {/* CHANGE 6: Failure diagnosis */}
+        {/* Failure diagnosis */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>🔍 What Held You Back</div>
           <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>Worst month: <strong style={{ color: C.text }}>{worstMonth}</strong> (happiness {worstHappiness}). Here's what the data shows:</p>
@@ -765,7 +785,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
             <tbody>{history.map((m, i) => (
               <tr key={i} style={{ borderBottom: `1px solid ${C.borderLight}` }}>
                 <td style={{ padding: "6px 10px 6px 0", color: C.textSub, fontWeight: 700 }}>{MONTHS[i].slice(0, 3)}</td>
-                <td style={{ color: C.red, fontWeight: 800, paddingRight: 10 }}>{m.uberTax}%</td>
+                <td style={{ color: i < 2 ? C.textFaint : C.red, fontWeight: 800, paddingRight: 10 }}>{i < 2 ? "🔒" : `${m.uberTax}%`}</td>
                 <td style={{ color: C.blue, fontWeight: 800, paddingRight: 10 }}>{m.busSubsidy}%</td>
                 <td style={{ color: m.monthlyDelta >= 0 ? C.green : C.red, fontWeight: 800, paddingRight: 10 }}>{m.monthlyDelta >= 0 ? "+" : ""}{m.monthlyDelta.toFixed(2)}M</td>
                 <td style={{ color: gc(m.happinessScore, "happiness"), fontWeight: 700, paddingRight: 10 }}>{Math.round(m.happinessScore)}</td>
@@ -812,19 +832,17 @@ export default function TransportTycoon() {
   const [budget, setBudget] = useState(BUDGET_CONFIG.annualBudget);
   const [scoreless, setSL] = useState(false);
   const [gameOverMonth, setGOM] = useState("");
-  // CHANGE 3: political ejection state
   const [polMonth, setPolMonth] = useState("");
 
   const handleCommit = useCallback((uberVal, busVal, wasTimedOut) => {
     setBudget(prev => {
-      const stats = simulate(uberVal, busVal, prev);
+      const stats = simulate(uberVal, busVal, prev, roundIndex);
       const newBudget = +(prev + stats.monthlyDelta).toFixed(3);
       const msg = getMonthEndMessage(stats, uberVal, busVal, Math.max(0, newBudget) / BUDGET_CONFIG.annualBudget, wasTimedOut);
       const record = { ...stats, uberTax: uberVal, busSubsidy: busVal };
       setResult(record); setMsg(msg); setTO(wasTimedOut);
       setHistory(h => {
         const nh = [...h, record];
-        // CHANGE 3: check for 3 consecutive months below political floor
         const streak = nh.slice(-SIMULATION.politicalStreakNeeded)
           .filter(r => r.happinessScore < SIMULATION.politicalFloor).length;
         if (streak >= SIMULATION.politicalStreakNeeded && nh.length >= SIMULATION.politicalStreakNeeded) {
