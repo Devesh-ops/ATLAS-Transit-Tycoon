@@ -245,10 +245,11 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
 
   // ── BUDGET ─────────────────────────────────────────────────
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
-  const budgetStress = budgetFraction > 0.5 ? 0 : (0.5 - budgetFraction) / 0.5;
-  const activity = (cityMobility + congestionLevel) / 2;
-  const uberRevenue = (uberTax / 100) * SIMULATION.uber.revenueRate * activity * 200;
-  const busCost = (busSubsidy / 100) * bus.costRate * activity * 200;
+  const budgetStress = budgetFraction > 0.2 ? 0 : (0.2 - budgetFraction) / 0.2;
+  const uberVolume = Math.max(5, congestionLevel);
+  const busVolume = Math.max(5, poorMobility * 0.7 + richMobility * 0.3);
+  const uberRevenue = (uberTax / 100) * SIMULATION.uber.revenueRate * uberVolume * 200;
+  const busCost = (busSubsidy / 100) * bus.costRate * busVolume * 200;
   const acCost = (acLevel / 100) * ac.costRate * (0.3 + tempDiscomfort * 0.7) * 200;
   const monthlyDelta = +(uberRevenue - busCost - acCost).toFixed(3);
 

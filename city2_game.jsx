@@ -22,10 +22,10 @@ const C = {
 //  BLUEPRINT
 // ============================================================
 const CITY_META = {
-  name: "Smallville",
+  name: "Riverdale",
   subtitle: "A city learning to cope with changing seasons",
   population: 200000,
-  intro: `Smallville has 200,000 people. Unlike City 1, the seasons here hit hard — heatwaves and cold snaps drive people off buses and into Ubers, spiking congestion. You have $30M for the year and three levers: tax Uber (earns revenue, cuts congestion), subsidize buses (costs money, keeps people moving), and invest in bus AC & heating (costs money, keeps buses comfortable year-round). When weather is extreme and buses are uncomfortable, bus subsidies alone won't help. Plan for the seasons.`,
+  intro: `Riverdale has 200,000 people. Smallville was just the beginning. The seasons here hit hard — heatwaves and cold snaps drive people off buses and into Ubers, spiking congestion. You have $30M for the year and three levers: tax Uber (earns revenue, cuts congestion), subsidize buses (costs money, keeps people moving), and invest in bus AC & heating (costs money, keeps buses comfortable year-round). When weather is extreme and buses are uncomfortable, bus subsidies alone won't help. Plan for the seasons.`,
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -95,7 +95,7 @@ const SCORING = {
 
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Welcome to Smallville — bigger city, bigger weather swings. In July and January, buses empty out unless they're climate-controlled. Your third lever — Bus AC & Heating — costs money but keeps buses attractive year-round. Without it, even a generous bus subsidy fails in extreme months. Use Uber tax revenue to fund both bus subsidies and AC. 25 seconds per month.`,
+  gameIntro: `Welcome to Riverdale — bigger city, bigger weather swings. In July and January, buses empty out unless they're climate-controlled. Your third lever — Bus AC & Heating — costs money but keeps buses attractive year-round. Without it, even a generous bus subsidy fails in extreme months. Use Uber tax revenue to fund both bus subsidies and AC. 25 seconds per month.`,
   monthStartHints: [
     "January 🥶 — Deep winter. Buses are freezing. Low AC means riders switch to Uber — congestion up. Plan your AC investment carefully.",
     "Still cold. Cold buses hit mobility hard. If AC is low, the bus subsidy isn't helping much — riders avoid buses regardless of price.",
@@ -111,7 +111,7 @@ const ADVISOR = {
     "Final month ❄️. Finish strong — remaining budget adds to your final score.",
   ],
   monthEndReactions: {
-    highHappiness: ["Great month! Mobility is strong, congestion manageable, and buses comfortable.", "Smallville is moving well. Seasonal planning is paying off.", "Strong policy. Tax revenue funding real comfort and access."],
+    highHappiness: ["Great month! Mobility is strong, congestion manageable, and buses comfortable.", "Riverdale is moving well. Seasonal planning is paying off.", "Strong policy. Tax revenue funding real comfort and access."],
     heatNeedingAC: ["Hot buses + high Uber tax = stranded riders. AC would have kept buses attractive this month.", "Heat without AC forces people off buses. Congestion follows.", "Extreme heat + low AC is a mobility crisis. Invest in climate control before next summer."],
     coldNeedingAC: ["Cold buses + low AC = empty buses. Riders take Uber instead — congestion rises.", "Winter without bus heating hurts. AC is your most important lever in extreme months.", "Low-income riders can't afford both: a taxed Uber AND a cold bus. Heating is the solution."],
     highCongestion: ["Roads are packed. Low Uber tax means cheap rides but clogged streets. Consider raising it.", "Too many cars. Uber tax would reduce congestion AND earn revenue.", "Gridlock. The weather is pushing people into Ubers — tax them to fund the solution."],
@@ -498,7 +498,7 @@ function PoliticalLossScreen({ month, onRestart, onContinue }) {
         <div style={{ fontSize: 54, marginBottom: 10 }}>🗳️</div>
         <div style={{ fontSize: 11, letterSpacing: 3, color: C.purple, textTransform: "uppercase", marginBottom: 8, fontWeight: 800 }}>Political Ejection</div>
         <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 10px" }}>You've been voted out</h2>
-        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below 30. Smallville needs a new Transport Director.</p>
+        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below 30. Riverdale needs a new Transport Director.</p>
         <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>Removed in <strong>{month}</strong>. Sustained low happiness — especially in extreme weather months — signals policy failure.</p>
         <div style={{ marginBottom: 22 }}><AdvisorBox message="Three consecutive months of deep unhappiness is a political signal. Check whether the Uber tax was too high without bus and AC compensation." /></div>
         <div style={{ display: "flex", gap: 10 }}>
@@ -516,7 +516,7 @@ function GameOverScreen({ month, onRestart, onContinue }) {
       <div style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 52, marginBottom: 10 }}>💸</div>
         <div style={{ fontSize: 10, letterSpacing: 4, color: C.red, textTransform: "uppercase", marginBottom: 8 }}>Budget Depleted</div>
-        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Smallville Bankrupt</h2>
+        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Riverdale Bankrupt</h2>
         <p style={{ fontSize: 13, color: C.textSub, lineHeight: 1.7, marginBottom: 22 }}>
           The city ran out of funds in <strong>{month}</strong>. Bus and AC costs outpaced Uber tax revenue.
         </p>
@@ -885,7 +885,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
 // ============================================================
 //  MAIN GAME CONTROLLER
 // ============================================================
-export default function SmallvilleTycoonCity2() {
+export default function RiverdaleTycoonCity2() {
   const [screen, setScreen] = useState("intro");
   const [roundIndex, setRound] = useState(0);
   const [uberTax, setUber] = useState(0);

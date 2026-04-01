@@ -65,8 +65,8 @@ function StoryFlow({ onComplete }) {
                 {currentScreen.type === "narrative" && (
                     <NarrativeScreen content={currentScreen} onNext={nextStep} />
                 )}
-                {currentScreen.type === "resident" && (
-                    <ResidentScreen content={currentScreen} onNext={nextStep} />
+                {currentScreen.type === "residents" && (
+                    <ResidentsScreen content={currentScreen} onNext={nextStep} />
                 )}
                 {currentScreen.type === "goal" && (
                     <GoalScreen content={currentScreen} onNext={nextStep} />
@@ -102,48 +102,37 @@ function NarrativeScreen({ content, onNext }) {
     );
 }
 
-function ResidentScreen({ content, onNext }) {
+function ResidentsScreen({ content, onNext }) {
     return (
         <div>
-            <div style={{
-                display: "inline-block",
-                padding: "20px",
-                background: "rgba(30, 41, 59, 0.4)",
-                borderRadius: "50%",
-                marginBottom: 24,
-                border: "1px solid #334155"
-            }}>
-                <div style={{ fontSize: 50 }}>{content.icon}</div>
-            </div>
-            <div style={{ fontSize: 13, letterSpacing: 2, color: "#3B82F6", textTransform: "uppercase", marginBottom: 16, fontWeight: 600 }}>
-                {content.role}
-            </div>
-            <div style={{
-                position: "relative",
-                background: "#0F172A",
-                border: "1px solid #1E293B",
-                borderRadius: 12,
-                padding: "24px 32px",
-                marginBottom: 40,
-                fontStyle: "italic",
-                fontSize: 20,
-                color: "#F1F5F9",
-                lineHeight: 1.6,
-                boxShadow: "0 10px 30px rgba(0,0,0,0.5)"
-            }}>
-                "{content.quote}"
-                {/* Speech Bubble Tail */}
-                <div style={{
-                    position: "absolute",
-                    top: "-10px",
-                    left: "50%",
-                    transform: "translateX(-50%) rotate(45deg)",
-                    width: 20,
-                    height: 20,
-                    background: "#0F172A",
-                    borderLeft: "1px solid #1E293B",
-                    borderTop: "1px solid #1E293B"
-                }} />
+            <h2 style={{ fontSize: 28, fontWeight: 700, color: "#F8FAFC", marginBottom: 24, lineHeight: 1.3 }}>
+                The City's Voices
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 40 }}>
+                {content.residents.map((resident, i) => (
+                    <div key={i} style={{
+                        position: "relative",
+                        background: "#0F172A",
+                        border: "1px solid #1E293B",
+                        borderRadius: 12,
+                        padding: "16px 20px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 16,
+                        textAlign: "left",
+                        boxShadow: "0 4px 15px rgba(0,0,0,0.3)"
+                    }}>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: "80px" }}>
+                            <div style={{ fontSize: 32 }}>{resident.icon}</div>
+                            <div style={{ fontSize: 10, letterSpacing: 1, color: "#3B82F6", textTransform: "uppercase", marginTop: 8, fontWeight: 600, textAlign: "center" }}>
+                                {resident.role}
+                            </div>
+                        </div>
+                        <div style={{ fontStyle: "italic", fontSize: 15, color: "#F1F5F9", lineHeight: 1.5 }}>
+                            "{resident.quote}"
+                        </div>
+                    </div>
+                ))}
             </div>
             <ActionButton onClick={onNext} text="Continue" />
         </div>
@@ -225,52 +214,30 @@ const STORY_SCREENS = [
         text: "They need to get to work, to the hospital, to their families. The city cannot stop."
     },
     {
-        type: "resident",
-        icon: "🧍",
-        role: "The Commuter",
-        quote: "I just need to get to work on time. I don't care how, I just need a reliable way to get there without spending a fortune."
-    },
-    {
-        type: "resident",
-        icon: "🚌",
-        role: "The Transit Rider",
-        quote: "The buses are getting too hot. I can't ride them in the afternoon anymore. We need better cooling or more frequent service."
-    },
-    {
-        type: "resident",
-        icon: "🚗",
-        role: "The Driver",
-        quote: "I'd take the bus, but it takes three times as long. And trying to drive? I spend half my life stuck in traffic with these new taxes."
+        type: "residents",
+        residents: [
+            {
+                icon: "🧍",
+                role: "The Commuter",
+                quote: "I just need a reliable and affordable way to get to work on time."
+            },
+            {
+                icon: "🚌",
+                role: "The Rider",
+                quote: "The buses are too hot in the afternoon. We need better cooling or frequent service."
+            },
+            {
+                icon: "🚗",
+                role: "The Driver",
+                quote: "I'd take the bus, but it's too slow. And driving? You either sit in gridlock or pay through the nose in taxes."
+            }
+        ]
     },
     {
         type: "narrative",
         icon: "🏢",
         title: "You are in charge.",
         text: "As the new Director of Transit, their problems are your problems. Your policies will determine how the city moves."
-    },
-    {
-        type: "narrative",
-        icon: "🤖",
-        title: "City 1: Future Autonomous Congestion",
-        text: "In the future, autonomous ride-hailing reduces the effective cost of Uber, causing more people to take it. That increases demand for curb space and road capacity, pushing congestion upward. In this opening phase, the game intentionally locks the Uber Tax lever for the first two turns, so congestion has time to rise before you can use tax to push riders back and recover traffic. During the lock, rely on bus policy and budgeting to manage mobility while the city adapts."
-    },
-    {
-        type: "narrative",
-        icon: "🌦️",
-        title: "City 2: Seasons & Bus AC",
-        text: "Now the calendar matters. As seasons shift, buses become less comfortable in extreme heat and cold, so ridership swings between Uber and transit. You gain a new lever: “Bus AC & Heating.” Invest in comfort before the harshest months so buses stay an attractive option, and you can maintain mobility even when weather would normally push people away."
-    },
-    {
-        type: "narrative",
-        icon: "💰",
-        title: "City 3: Rich vs Poor",
-        text: "Policies stop being “one size fits all.” The city splits into rich and poor residents, and each group has different mobility tradeoffs and fewer alternatives when prices change. You’ll effectively manage two mobility problems at once: high Uber pricing (or taxes) can help congestion, but it may hit poor riders harder, while bus subsidies can protect them—at a budget cost. Watch the gap between groups because equity affects happiness."
-    },
-    {
-        type: "narrative",
-        icon: "🚻",
-        title: "City 4: Gendered Barriers",
-        text: "City 4 adds a new lens: gendered experiences of transit. Safety, comfort, and access barriers mean that the same policy can improve mobility for one gender group while barely helping (or even worsening) outcomes for another, especially when external conditions strain the system. You should expect a new “Gender Equity” metric: aim to raise it by choosing policies and investments that reduce unequal barriers, not just raise the overall average."
     },
     {
         type: "goal",
@@ -467,44 +434,33 @@ function MockGameUI({ tutorialStep }) {
                 justifyContent: "space-between",
                 marginBottom: 60,
                 position: "relative",
-                zIndex: (tutorialStep === 2 || tutorialStep === 3) ? 70 : 1
+                zIndex: tutorialStep === 2 ? 70 : 1
             }}>
-                <div style={{
-                    background: tutorialStep === 3 ? "rgba(30, 41, 59, 1)" : "#0F172A",
-                    border: tutorialStep === 3 ? "1px solid #3B82F6" : "1px solid #1E293B",
-                    padding: "12px 24px",
-                    borderRadius: 8,
-                    boxShadow: tutorialStep === 3 ? "0 0 25px rgba(59, 130, 246, 0.4)" : "none",
-                    transition: "all 0.5s ease-in-out",
-                    transform: tutorialStep === 3 ? "scale(1.1)" : "scale(1)",
-                    opacity: tutorialStep === 3 || tutorialStep === undefined ? 1 : 0.4
-                }}>
-                    <div style={{ color: "#64748B", fontSize: 11, textTransform: "uppercase", marginBottom: 4 }}>Budget</div>
-                    <div style={{ color: "#10B981", fontSize: 20, fontWeight: 700 }}>$12,000,000</div>
-                </div>
-                <div style={{
-                    textAlign: "center",
-                    paddingTop: 10,
-                    transform: tutorialStep === 2 ? "scale(1.2)" : "scale(1)",
-                    transition: "all 0.5s ease-in-out",
-                    opacity: tutorialStep === 2 || tutorialStep === undefined ? 1 : 0.4
-                }}>
-                    <div style={{ fontSize: 40 }}>☀️</div>
-                    <div style={{ color: "#FBBF24", fontWeight: 700, fontSize: 14 }}>Summer</div>
-                </div>
                 <div style={{
                     background: tutorialStep === 2 ? "rgba(30, 41, 59, 1)" : "#0F172A",
                     border: tutorialStep === 2 ? "1px solid #3B82F6" : "1px solid #1E293B",
                     padding: "12px 24px",
                     borderRadius: 8,
-                    textAlign: "right",
                     boxShadow: tutorialStep === 2 ? "0 0 25px rgba(59, 130, 246, 0.4)" : "none",
                     transition: "all 0.5s ease-in-out",
                     transform: tutorialStep === 2 ? "scale(1.1)" : "scale(1)",
                     opacity: tutorialStep === 2 || tutorialStep === undefined ? 1 : 0.4
                 }}>
+                    <div style={{ color: "#64748B", fontSize: 11, textTransform: "uppercase", marginBottom: 4 }}>Budget</div>
+                    <div style={{ color: "#10B981", fontSize: 20, fontWeight: 700 }}>$12,000,000</div>
+                </div>
+                
+                <div style={{
+                    background: "#0F172A",
+                    border: "1px solid #1E293B",
+                    padding: "12px 24px",
+                    borderRadius: 8,
+                    textAlign: "right",
+                    transition: "all 0.5s ease-in-out",
+                    opacity: tutorialStep === undefined ? 1 : 0.4
+                }}>
                     <div style={{ color: "#64748B", fontSize: 11, textTransform: "uppercase", marginBottom: 4 }}>Month</div>
-                    <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 700 }}>June</div>
+                    <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 700 }}>January</div>
                 </div>
             </div>
 
@@ -587,13 +543,6 @@ const TUTORIAL_STEPS = [
         text: "These gauges show the health of the city. Keep an eye on Happiness, Mobility, and Congestion. If they drop too low, your term might end early!",
         spotlight: { top: "58%", left: "72%", width: "420px", height: "300px", transform: "translate(-50%, -50%)" },
         contentPosition: { top: "50%", left: "5%", transform: "translateY(-50%)" }
-    },
-    {
-        icon: "🌡️",
-        title: "External Factors",
-        text: "Seasons and temperature will affect the city dynamically. Extreme heat or cold makes transportation harder, and you'll need to adapt your policies.",
-        spotlight: { top: "16.5%", left: "50%", width: "120px", height: "120px", transform: "translate(-50%, -50%)", borderRadius: "50%" },
-        contentPosition: { top: "42%", left: "50%", transform: "translateX(-50%)" }
     },
     {
         icon: "💰",
