@@ -66,7 +66,7 @@ const BUDGET_CONFIG = {
   busCostRate: 0.0016,
   uberRevenueRate: 0.0022,
   warningFraction: 0.20,
-  budgetBonusWeight: 0.15,
+  budgetBonusWeight: 0.10,
 };
 
 const SCORING = {
@@ -101,15 +101,60 @@ const ADVISOR = {
     "Last month! Finish strong — remaining budget adds to your final score.",
   ],
   monthEndReactions: {
-    highHappiness: ["Great month! Mobility is strong, congestion is manageable, and the budget held.", "Smallville is humming. Good policy shows.", "Solid decisions — Uber tax revenue is working for you."],
-    highCongestion: ["Roads are packed. Low Uber tax means cheap rides but clogged streets. Consider raising it.", "Too many cars. Uber tax would reduce congestion AND earn revenue.", "Gridlock. The mobility gains are being eaten by time lost in traffic."],
-    lowMobility: ["Mobility has dropped. The Uber tax may be too high — you're past the cliff. Ease back or boost bus.", "Citizens aren't moving much. Above 60% tax, mobility falls sharply.", "The city feels stuck. High taxes without strong bus support leaves people stranded."],
-    busConstraining: ["Mobility is above 50 — your bus subsidy is pulling it back down. Fixed routes are limiting people.", "Bus subsidies above the mobility threshold constrain travel. Consider reducing bus spend.", "People are being pushed onto buses when they'd prefer flexible travel."],
-    budgetWarning: ["Budget running thin. Raise the Uber tax to generate revenue — it's your income stream.", "Less than 20% left. Uber tax is the only lever that earns money, not spends it.", "Tight budget. A modest Uber tax increase could stabilise things."],
-    revenueGain: ["Nice — Uber tax revenue exceeded bus costs this month. The city is self-funding.", "Budget grew this month. Uber tax is pulling its weight.", "Positive month for the budget. The tax-and-reinvest strategy is working."],
-    balanced: ["Decent month. City is moving, traffic manageable, budget stable.", "Steady policy. It compounds well across the year."],
-    noPolicy: ["No tax and no subsidy this month. Uber runs unchecked — congestion is high and budget unchanged.", "Laissez-faire month. Congestion builds without an Uber tax."],
-    timedOut: ["Time ran out. Whatever was on the sliders locked in.", "The clock beat you. Quicker decisions next month — or hit End Turn earlier."],
+    highHappiness: [
+      "Great month! Mobility is strong, congestion is manageable, and the budget held.",
+      "Smallville is humming. This is exactly the kind of balanced transport policy we need.",
+      "Voters are noticing. Mobility is up and congestion is down — solid decisions.",
+      "Outstanding. You've hit the sweet spot of transport logic."
+    ],
+    highCongestion: [
+      "Roads are looking clogged. A slightly higher Uber tax would discourage low-occupancy AV trips.",
+      "Traffic is building up. We need to push more people towards shared transport with higher taxes.",
+      "The city is grinding to a halt. If we don't tax these AVs, they'll own the roads.",
+      "Gridlock. The mobility gains are being eaten by time lost in traffic."
+    ],
+    lowMobility: [
+      "Mobility has dropped. The Uber tax may be too high — you're past the cliff. Ease back or boost bus.",
+      "Citizens aren't moving much. Above 60% tax, mobility falls sharply. We need more flow.",
+      "The city feels stuck. High taxes without strong bus support leaves people stranded.",
+      "People aren't moving enough. Consider lowering the tax or increasing the bus subsidy."
+    ],
+    busConstraining: [
+      "Mobility is above 50 — your bus subsidy is pulling it back down. Fixed routes are limiting people.",
+      "Bus subsidies above the mobility threshold constrain travel. Consider reducing bus spend.",
+      "People are being pushed onto buses when they'd prefer flexible travel.",
+      "Strategic mismatch: the city is already mobile, so high subsidies are actually hurting."
+    ],
+    budgetWarning: [
+      "Budget running thin. Raise the Uber tax to generate revenue — it's your only income stream.",
+      "Less than 20% left. Every dollar counts from here on out. Watch the spending.",
+      "Tight budget. A modest Uber tax increase could stabilise our reserves.",
+      "Our bus subsidies are outpacing our revenue. We need to recalibrate."
+    ],
+    revenueGain: [
+      "Nice — Uber tax revenue exceeded bus costs this month. The city is self-funding.",
+      "Budget grew this month. The self-funding model is working as intended.",
+      "Positive month for the budget. This surplus gives us breathing room for next month.",
+      "We're in the black. The Uber tax is pulling its weight."
+    ],
+    balanced: [
+      "Decent month. City is moving, traffic manageable, budget stable.",
+      "Steady policy. It compounds well across the year.",
+      "A solid result. No major crises, and the budget is stable.",
+      "Consistent hand on the tiller. Everything is in order."
+    ],
+    noPolicy: [
+      "No tax and no subsidy this month. Uber runs unchecked — congestion is high and budget unchanged.",
+      "Laissez-faire month. Congestion builds without an Uber tax.",
+      "Total deregulation this month. AVs are winning, but the city's health is losing.",
+      "Unchecked market forces at work. The roads are suffering."
+    ],
+    timedOut: [
+      "Time ran out. Whatever was on the sliders locked in.",
+      "The clock beat you. Quicker decisions next month — or hit End Turn earlier.",
+      "Decision time expired. We're running with the existing policy.",
+      "The timer hit zero before you could commit. Hopefully, the current rates work."
+    ],
   },
   tooltips: {
     happiness: "Overall citizen satisfaction. Goes up with mobility, down with congestion and budget stress. Final score averages this across 12 months.",
@@ -218,12 +263,12 @@ function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
   const revenuePositive = monthlyDelta > 0;
   const taxZone = uberTax <= 30 ? "gentle" : uberTax <= 60 ? "steep" : "cliff";
 
-  const hMob = (mobilityScore - baseline.cityMobility) * 0.7;
-  const hCong = -(congestionLevel - baseline.congestionLevel) * 0.3;
-  const hBudg = -budgetStress * 20;
+  const hMob = mobilityGain * happiness.mobilityWeight;
+  const hCong = -congestionPain * happiness.congestionWeight;
+  const hBudg = -budgetStress * 25 * happiness.budgetStressWeight;
 
-  return { 
-    mobilityScore, congestionLevel, happinessScore, monthlyDelta, uberRevenue, busCost, budgetStress, 
+  return {
+    mobilityScore, congestionLevel, happinessScore, monthlyDelta, uberRevenue, busCost, budgetStress,
     busIsConstraining, revenuePositive, taxZone,
     mobilityBreakdown: [
       { label: "Bus Boost", value: busEffect, color: C.green },
@@ -289,16 +334,20 @@ function diagnoseRun(history, finalBudget) {
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function getMonthEndMessage(stats, uberTax, bus, budgetFraction, timedOut) {
-  if (timedOut) return pickRandom(ADVISOR.monthEndReactions.timedOut);
-  if (uberTax === 0 && bus === 0) return pickRandom(ADVISOR.monthEndReactions.noPolicy);
-  if (budgetFraction < BUDGET_CONFIG.warningFraction) return pickRandom(ADVISOR.monthEndReactions.budgetWarning);
-  if (stats.busIsConstraining && bus > 0) return pickRandom(ADVISOR.monthEndReactions.busConstraining);
+  const r = ADVISOR.monthEndReactions;
+  if (timedOut) return pickRandom(r.timedOut);
+  if (uberTax === 0 && bus === 0) return pickRandom(r.noPolicy);
+  if (budgetFraction < BUDGET_CONFIG.warningFraction) return pickRandom(r.budgetWarning);
+  
+  if (stats.busIsConstraining && bus > 40) return pickRandom(r.busConstraining);
+  
   const t = SIMULATION.thresholds;
-  if (stats.happinessScore >= t.happiness.good) return pickRandom(ADVISOR.monthEndReactions.highHappiness);
-  if (stats.congestionLevel >= t.congestion.warning) return pickRandom(ADVISOR.monthEndReactions.highCongestion);
-  if (stats.mobilityScore <= t.mobility.warning) return pickRandom(ADVISOR.monthEndReactions.lowMobility);
-  if (stats.revenuePositive) return pickRandom(ADVISOR.monthEndReactions.revenueGain);
-  return pickRandom(ADVISOR.monthEndReactions.balanced);
+  if (stats.happinessScore >= t.happiness.good) return pickRandom(r.highHappiness);
+  if (stats.congestionLevel >= t.congestion.warning) return pickRandom(r.highCongestion);
+  if (stats.mobilityScore <= t.mobility.warning) return pickRandom(r.lowMobility);
+  if (stats.revenuePositive) return pickRandom(r.revenueGain);
+  
+  return pickRandom(r.balanced);
 }
 
 function getGrade(score) {
@@ -399,7 +448,7 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       {badge}
       <input type="range" min={0} max={100} step={5} value={value}
         onChange={e => !locked && onChange(Number(e.target.value))} disabled={locked}
-        style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer" }} />
+        style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer", touchAction: "none" }} />
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
         <span>0%</span><span>50%</span><span>100%</span>
       </div>
@@ -624,18 +673,18 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
         {/* Live preview */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", marginBottom: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Live Preview</div>
-          <GaugeBar 
-            label="Happiness" 
-            value={live.happinessScore} 
-            type="happiness" 
-            tooltip={ADVISOR.tooltips.happiness} 
+          <GaugeBar
+            label="Happiness"
+            value={live.happinessScore}
+            type="happiness"
+            tooltip={ADVISOR.tooltips.happiness}
             breakdown={live.happinessBreakdown}
           />
-          <GaugeBar 
-            label="Mobility" 
-            value={live.mobilityScore} 
-            type="mobility" 
-            tooltip={ADVISOR.tooltips.mobility} 
+          <GaugeBar
+            label="Mobility"
+            value={live.mobilityScore}
+            type="mobility"
+            tooltip={ADVISOR.tooltips.mobility}
             breakdown={live.mobilityBreakdown}
           />
           <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
@@ -690,18 +739,35 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
           </div>
         </div>
 
-        {/* Stats row */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
-          {[["Happiness", Math.round(stats.happinessScore), "happiness"], ["Mobility", Math.round(stats.mobilityScore), "mobility"], ["Congestion", Math.round(stats.congestionLevel), "congestion"]].map(([l, v, t]) => (
-            <div key={l} style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", textAlign: "center", flex: 1 }}>
-              <div style={{ fontSize: 9, color: C.textFaint, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>{l}</div>
-              <div style={{ fontSize: 19, fontWeight: 800, color: gc(v, t) }}>{v}</div>
-            </div>
-          ))}
-          <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", textAlign: "center", flex: 1 }}>
-            <div style={{ fontSize: 9, color: C.textFaint, textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>Budget</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: gc(budgetFraction, "budget") }}>${budgetRemaining.toFixed(1)}M</div>
-          </div>
+        {/* Stats gauges with breakdown */}
+        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+          <GaugeBar
+            label="Happiness"
+            value={stats.happinessScore}
+            type="happiness"
+            tooltip={ADVISOR.tooltips.happiness}
+            breakdown={stats.happinessBreakdown}
+          />
+          <GaugeBar
+            label="Mobility"
+            value={stats.mobilityScore}
+            type="mobility"
+            tooltip={ADVISOR.tooltips.mobility}
+            breakdown={stats.mobilityBreakdown}
+          />
+          <GaugeBar
+            label="Congestion"
+            value={stats.congestionLevel}
+            type="congestion"
+            tooltip={ADVISOR.tooltips.congestion}
+          />
+          <GaugeBar
+            label="Budget Remaining"
+            value={budgetFraction}
+            type="budget"
+            tooltip={ADVISOR.tooltips.budget}
+            extra={`/ $${BUDGET_CONFIG.annualBudget}M`}
+          />
         </div>
 
         {timedOut && (
@@ -914,7 +980,7 @@ export default function TransportTycoon() {
 
   const handleNext = useCallback(() => {
     if (roundIndex === 11) setScreen("yearEnd");
-    else { setRound(r => r + 1); setUber(0); setBus(0); setScreen("planning"); }
+    else { setRound(r => r + 1); setScreen("planning"); }
   }, [roundIndex]);
 
   const handleRestart = useCallback(() => {
@@ -924,8 +990,10 @@ export default function TransportTycoon() {
   }, []);
 
   const handleContinue = useCallback(() => {
-    setSL(true); setRound(r => r + 1); setUber(0); setBus(0); setBudget(0); setScreen("planning");
-  }, []);
+    setSL(true);
+    if (roundIndex === 11) setScreen("yearEnd");
+    else { setRound(r => r + 1); setBudget(0); setScreen("planning"); }
+  }, [roundIndex]);
 
   if (screen === "intro") return <IntroScreen onStart={() => setScreen("planning")} />;
   if (screen === "gameOver") return <GameOverScreen month={gameOverMonth} onRestart={handleRestart} onContinue={handleContinue} />;

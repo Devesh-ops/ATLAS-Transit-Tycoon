@@ -103,7 +103,7 @@ const BUDGET_CONFIG = {
 };
 
 const SCORING = {
-  weights: { happiness: 0.40, equity: 0.35, budget: 0.25 },
+  weights: { happiness: 0.45, equity: 0.40, budget: 0.15 },
   grades: [
     { min: 85, grade: "A+", label: "Model City", color: C.green },
     { min: 75, grade: "A", label: "Equitable & Thriving", color: C.green },
@@ -116,26 +116,26 @@ const SCORING = {
 
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Welcome to Gilded Hollow — 200,000 people, very unequal. You now tax Uber rather than subsidise it. The tax earns revenue and cuts congestion — but it hits poor citizens hardest, since they rely on Uber more than the wealthy. Use that revenue to fund bus subsidies and AC. Equity is 35% of your final score. Hit End Turn when you're ready, or the clock decides.`,
+  gameIntro: "Welcome to Gilded Hollow — a city with a deep income divide. Here, Uber is primarily a luxury for the wealthy. Taxing it provides the progressive revenue we need to build a premium, climate-controlled bus system for everyone. Your goal is to use this redistributed wealth to bridge the equity gap and keep the city moving. End Turn when you're ready.",
   monthStartHints: [
-    "January 🥶 — Deep winter. Cold buses are empty. AC costs budget — but the Uber tax helps fund it.",
-    "Still cold. Heavy Uber tax hits poor mobility hardest — they have fewer alternatives than the rich.",
-    "Winter easing. AC costs drop. Good month to experiment with tax and subsidy balance.",
-    "Spring — mild temperatures. Buses are naturally attractive. A lower Uber tax won't hurt as much now.",
-    "Late spring. Temperatures climbing. Plan your AC strategy before July.",
-    "Early summer 🌡️ — buses warming. The equity gap widens when poor riders can't afford taxed Uber AND buses are hot.",
-    "Peak summer 🔥 — hardest month. High AC keeps poor riders on buses. Without it, they're stranded.",
-    "Still hot. Uber tax revenue can fund the AC you need — use it.",
-    "Summer fading. Ease the Uber tax to restore mobility as AC costs drop.",
-    "Autumn 🍂 — mild. Recover budget before winter.",
-    "Late autumn. Cold returning. Prepare AC before December.",
-    "Final month ❄️. Equity is 35% of your score — close the gap before the year ends.",
+    "January 🥶 — Deep winter. Cold buses are empty. Wealthy riders are the primary users of Uber — taxing them now funds bus heating for everyone.",
+    "Still cold. In this city, wealthy riders have 2.4x higher price sensitivity to Uber — they'll feel the tax most.",
+    "Winter easing. AC costs drop. Use this chance to maintain taxes on the rich and flip that revenue into bus subsidies.",
+    "Spring — mild temperatures. Buses are popular. A good time to keep Uber taxes high to build your budget.",
+    "Late spring. Temperatures climbing. The wealthy shift to Uber even more in the heat — tax them to fund the AC.",
+    "Early summer 🌡️ — buses warming. A higher Uber tax on wealthy riders provides the budget to keep buses cool for the poor.",
+    "Peak summer 🔥 — hardest month. High AC keeps buses viable. High Uber tax on the wealthy keeps your budget viable.",
+    "Still hot. Remember: wealth-based taxes funding public comfort is the key to city equity.",
+    "Summer fading. As AC costs drop, keep the Uber tax calibrated to manage rich/poor mobility gaps.",
+    "Autumn 🍂 — mild. A good time to build up your budget reserves before the next winter cycle.",
+    "Late autumn. Cold returning. High Uber taxes continue to provide the funding for seasonal bus heating.",
+    "Final month ❄️. Equity and Happiness are balanced on your last few decisions. Make them count.",
   ],
   monthEndReactions: {
     highHappiness: ["Great month! Both groups moving well — and buses were comfortable.", "Gilded Hollow is working. Mobility up, equity gap manageable.", "Strong policy. Tax revenue funding real access."],
-    equityGap: ["Rich can absorb the Uber tax — poor can't. The gap is widening. Invest in bus + AC to compensate.", "Heavy Uber tax disproportionately hurts low-income riders. Bus subsidies and AC are the equity correction.", "This is the core finding: pricing policies hit the poor hardest. Targeted investment is the antidote."],
-    heatNeedingAC: ["Hot buses, high Uber tax — poor citizens are stranded. AC would have kept buses attractive.", "Heat + expensive Uber is a mobility crisis for low-income riders.", "Without AC, extreme weather forces poor citizens to choose between a hot bus and a taxed Uber they can't afford."],
-    coldNeedingAC: ["Cold buses + expensive Uber = poor citizens staying home. AC heating is the equity tool here.", "Winter cold without bus heating hits the poor hardest.", "Low-income riders avoiding cold buses. AC is your most equity-efficient lever in winter."],
+    equityGap: ["The mobility gap is narrow, but we need more revenue from the wealthy to fund the bus. Taxing Uber hits them hardest and provides for the rest.", "Wealthy riders are highly sensitive to this tax. Use it to level the playing field and fund bus subsidies.", "This is the progressive model: pricing policies hit the rich hardest, providing a budget for the common good."],
+    heatNeedingAC: ["Hot buses drive wealthy riders to Uber — tax that shift! Use the revenue to keep buses cool for the poor.", "Heat + expensive Uber for the rich is a revenue opportunity to fund bus AC.", "Wealthy riders avoid hot buses and pay the Uber tax — which pays for the AC for everyone else."],
+    coldNeedingAC: ["Winter cold drives wealthy riders to Uber. Tax them to fund the bus heating that the poor rely on.", "High Uber taxes on the rich are your most efficient funding lever in winter.", "Wealthy riders avoiding cold buses provides the revenue needed to heat the fleet for the poor."],
     highCongestion: ["Congestion still high despite the Uber tax. Make sure the tax is high enough to shift riders to buses.", "Roads packed. A higher tax shifts more people to shared transport — but watch poor mobility."],
     lowMobility: ["Mobility dropped. The Uber tax may be too high — or bus + AC investment too low to compensate.", "City isn't moving much. Consider easing the tax and boosting bus subsidies."],
     budgetWarning: ["Budget thin. Uber tax is your income — make sure it's earning enough to cover bus and AC costs.", "Less than 20% remaining. Check whether tax revenue is keeping pace with your spending."],
@@ -145,24 +145,24 @@ const ADVISOR = {
     timedOut: ["Time ran out. Set AC first in extreme months — then tax and subsidy.", "The clock beat you. Hit End Turn earlier next month."],
   },
   tooltips: {
-    happiness: "Weighted city happiness: 60% poor + 40% rich. Poor happiness driven by mobility, AC comfort, budget stress. Rich by mobility and congestion.",
-    mobility: "City mobility: 60% poor + 40% rich. Uber tax reduces mobility — hitting poor ~4× harder. Bus helps below flip point, constrains above. AC offsets seasonal drops.",
-    congestion: "Road congestion. Uber tax reduces it (fewer cars). Bus subsidy reduces it. Bigger city = faster compounding.",
-    equity: "How equal the city is. 100 minus the rich/poor mobility gap. Narrow it with bus subsidies and AC — tools that specifically help poor riders.",
-    budget: "Remaining budget ($30M). Uber tax earns money. Bus subsidies and AC cost money. Net delta can be positive or negative each month.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion — but reduces mobility. Hits poor citizens ~4× harder than rich (fewer alternatives). Your income lever.",
-    busSubsidy: "Discount on bus fares. Strong effect on poor. Mobility flips above 65. Always reduces congestion. Costs budget.",
-    acLevel: "Bus climate comfort. At 0%, extreme weather empties buses — hitting poor hardest. At 100%, buses stay attractive year-round. Costs scale with temperature extremity.",
-    poorMobility: "Mobility of 60% low-income population. Key driver of equity score. Uber tax hits them ~4× harder than rich.",
-    richMobility: "Mobility of 40% wealthy population. Lower sensitivity to Uber tax — they have private alternatives.",
+    happiness: "Overall citizen satisfaction (60% poor + 40% rich). Driven by mobility, comfort, and lack of congestion.",
+    mobility: "City movement (60% poor + 40% rich). Uber tax reduces it—hitting the rich ~2.4x harder than the poor.",
+    congestion: "Road congestion. Uber tax reduces it. Bus subsidy reduces it.",
+    equity: "How equal the city is. Calculated as 100 minus the mobility gap between rich and poor. Narrow it by taxing the rich to fund the poor.",
+    budget: "Remaining budget ($30M). Uber tax earns money from the rich. Bus subsidies and AC cost money.",
+    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion—hits wealthy riders 2.4x harder than poor ones.",
+    busSubsidy: "Discount on bus fares. Essential for poor mobility. Funded by Uber taxes on the wealthy.",
+    acLevel: "Bus climate comfort. Essential for keeping all riders on buses. Funded by progressive Uber taxes.",
+    poorMobility: "Mobility of low-income population. In Gilded Hollow, they are less sensitive to Uber taxes.",
+    richMobility: "Mobility of wealthy population. They are highly sensitive to Uber taxes in this city.",
   },
 };
 
 const DEBRIEF = {
-  coreInsight: `Christensen & Osman (2023) found that hot weather causes significant mode substitution away from buses toward ride-hailing — especially among lower-income riders. When buses are uncomfortable AND Uber is expensive, poor citizens are left without viable options. This is why bus comfort investment is an equity intervention, not just a service upgrade.`,
-  equityInsight: `The research shows poor citizens have price elasticity ~2.4× higher than wealthy ones. Uber taxes are regressive — they hit the poor hardest. The antidote is reinvesting that tax revenue into public transport that specifically serves lower-income riders: bus subsidies and AC investment.`,
-  seasonInsight: `"Weathering the Ride" documents that temperature swings shift bus riders to ride-hailing. Without climate-controlled buses, seasonal extremes become seasonal equity crises — occurring twice a year, every year.`,
-  balanceInsight: `You found the balance: moderate Uber tax funding targeted bus and AC investment. This mirrors real policy recommendations — use ride-hailing taxes to cross-subsidize public transport, with particular attention to comfort in extreme weather.`,
+  coreInsight: `In Gilded Hollow, wealthier riders are the primary users of premium ride-hailing. When Uber is taxed, it primarily affects the mobility of the rich, providing a reliable stream of revenue to fund the bus systems the poor rely on. This is a progressive funding model for the city.`,
+  equityInsight: `The mobility gap is bridged by cross-subsidy. High Uber taxes on wealthy, price-sensitive riders fund the deep bus subsidies and AC investment needed to keep lower-income residents mobile throughout the year.`,
+  seasonInsight: `"Weathering the Ride" documents that temperature extremes shift wealthy riders to Uber. Leveraging this shift via progressive taxation allows you to fund the bus comfort that specifically protects the poor.`,
+  balanceInsight: `You found the progressive equilibrium: high Uber taxes on the wealthy funding targeted bus and AC investment for the poor. Consistent policy over 12 months is the key to long-term city equity.`,
   city4Teaser: `City 4 adds gender dynamics. Women face specific safety barriers on public transit that price subsidies alone can't fix. Female price elasticity is nearly 2.5× higher than male — but safety investment matters just as much.`,
   source: `Christensen & Osman (2025) "Demand for Mobility" · Christensen & Osman (2023) "Weathering the Ride"`,
 };
@@ -178,7 +178,7 @@ const CITY_INTRO_SLIDES = [
     icon: "📉",
     label: "The Challenge",
     title: "The Equity Gap",
-    text: "Uber taxes hit the poor hardest because they have fewer alternatives. The wealthy absorb it. Your performance is now also measured by Equity: how well you close the mobility gap between rich and poor.",
+    text: "Wealthy riders are the primary users of Uber in this city. A high Uber tax allows us to cross-subsidize the bus systems that provide mobility for the poor. Your performance is now measured by Equity: how well you close the mobility gap.",
   },
   {
     icon: "🏗️",
@@ -187,8 +187,8 @@ const CITY_INTRO_SLIDES = [
     text: "Use Uber tax revenue as a social tool. Reinvest those funds into bus subsidies and climate control to ensure the city works for everyone.",
     bullets: [
       { icon: "⚖️", text: "Equity is now 35% of your final score" },
-      { icon: "🚕", text: "Poor price elasticity is 2.4x higher than rich" },
-      { icon: "🚌", text: "Bus & AC investments directly improve equity" }
+      { icon: "🚕", text: "Rich price elasticity is 2.4x higher than poor" },
+      { icon: "🚌", text: "Uber taxes fund the bus for lower-income riders" }
     ],
     buttonText: "Take Office",
     primary: true
@@ -208,13 +208,15 @@ function getTemp(roundIndex) {
 // Now: poor lose steeply (up to −69pts at max tax), rich lose modestly but visibly.
 function uberMobilityLoss(tax, isPoor) {
   if (isPoor) {
-    if (tax <= 30) return tax * 0.40;
-    if (tax <= 60) return 12 + (tax - 30) * 0.70;
-    return 33 + (tax - 60) * 0.90;
+    // Poor are less sensitive and rely on Uber for basic essentials
+    if (tax <= 30) return tax * 0.12;
+    if (tax <= 60) return 3.6 + (tax - 30) * 0.30;
+    return 12.6 + (tax - 60) * 0.45;
   } else {
-    if (tax <= 30) return tax * 0.10;
-    if (tax <= 60) return 3 + (tax - 30) * 0.25;
-    return 10.5 + (tax - 60) * 0.35;
+    // Wealthy riders are the primary users; tax hits their mobility steeply
+    if (tax <= 30) return tax * 0.45;
+    if (tax <= 60) return 13.5 + (tax - 30) * 0.85;
+    return 39.0 + (tax - 60) * 1.30;
   }
 }
 
@@ -274,7 +276,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
 
   // ── BUDGET ─────────────────────────────────────────────────
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
-  const budgetStress = budgetFraction > 0.2 ? 0 : (0.2 - budgetFraction) / 0.2;
+  const budgetStress = budgetFraction > 0.5 ? 0 : (0.5 - budgetFraction) / 0.5;
   const uberVolume = Math.max(5, congestionLevel);
   const busVolume = Math.max(5, poorMobility * 0.7 + richMobility * 0.3);
   const uberRevenue = (uberTax / 100) * SIMULATION.uber.revenueRate * uberVolume * 200;
@@ -306,17 +308,18 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const hMobTotal = CITY_META.poorFraction * (poorMobility - baseline.poorMobility) * hw.poor.mobilityWeight + CITY_META.richFraction * (richMobility - baseline.richMobility) * hw.rich.mobilityWeight;
   const hCongTotal = -(congestionLevel - baseline.congestionLevel) * (CITY_META.poorFraction * hw.poor.congestionWeight + CITY_META.richFraction * hw.rich.congestionWeight);
   const hBudgTotal = -budgetStress * (CITY_META.poorFraction * 30 * hw.poor.budgetStressWeight + CITY_META.richFraction * 25 * hw.rich.budgetStressWeight);
+  const hACComfortTotal = CITY_META.poorFraction * poorACBonus * hw.poor.acComfortWeight + CITY_META.richFraction * richACBonus * hw.rich.acComfortWeight;
 
   return {
     poorMobility, richMobility, cityMobility,
     congestionLevel, equityScore,
     poorHappiness, richHappiness, cityHappiness,
     monthlyDelta, uberRevenue, busCost, acCost,
-    budgetStress, busIsConstraining, weatherAlert,
-    tempDiscomfort, collapseActive,
+    tempDiscomfort, tempIndex: ti, collapseActive,
     poorMobilityB4Bus,
     happinessBreakdown: [
       { label: "Mobility", value: hMobTotal, color: C.blue },
+      { label: "Comfort", value: hACComfortTotal, color: C.acColor },
       { label: "Congestion", value: hCongTotal, color: C.amber },
       { label: "Budget", value: hBudgTotal, color: C.red }
     ]
@@ -337,21 +340,21 @@ function diagnoseRun(history, finalBudget) {
   const worst = { ...history[worstIdx], idx: worstIdx };
   const failures = [];
 
-  if (avgPoor < 40 && avgU > 55) {
+  if (avgRich < 40 && avgU > 55) {
     failures.push({
       icon: "🚕", color: C.red, bg: C.redBg, border: C.redBorder,
-      title: "Uber tax hammered poor citizens",
-      body: `Your average Uber tax was ${Math.round(avgU)}%. Poor citizens bore the brunt: their average mobility was ${Math.round(avgPoor)}, far below the wealthy (${Math.round(avgRich)}). Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.cityHappiness)}). The fix: reinvest tax revenue into buses and AC.`,
-      research: "Cairo study: poor citizens have ~2.4× higher price elasticity than wealthy. A uniform Uber tax is a regressive instrument without compensating bus investment.",
+      title: "Uber tax suppressed wealthy mobility",
+      body: `Your average Uber tax was ${Math.round(avgU)}%. In Gilded Hollow, wealthy riders are 2.4x more price-sensitive—their average mobility fell to ${Math.round(avgRich)}. While this funded the bus, it may have over-taxed high-value city movement. Worst month: ${MONTHS[worst.idx]}.`,
+      research: "Optimal integrated transport policy: when ride-hailing is primarily a luxury service, high taxes on the wealthy can fund high-quality public transit for the poor, but excessive taxation may reduce total city economic activity if mobility falls too far.",
     });
   }
   const extremeMonths = history.filter((_, i) => Math.abs(SEASONS.tempIndex[i]) >= 0.7);
-  const collapseMonths = extremeMonths.filter(m => m.acLevel < 25 && m.poorMobility < 38);
+  const collapseMonths = extremeMonths.filter(m => m.acLevel < 15 && m.poorMobility < 38);
   if (collapseMonths.length >= 2) {
     failures.push({
       icon: "🌡️", color: C.amber, bg: C.amberBg, border: C.amberBorder,
       title: "Seasonal bus collapse hurt poor riders",
-      body: `In ${collapseMonths.length} extreme weather months, AC was below 25% — triggering a bus collapse. Poor citizens couldn't afford taxed Uber and faced hot or cold buses. This is the "Weathering the Ride" finding made real.`,
+      body: `In ${collapseMonths.length} extreme weather months, AC was below 15% — triggering a bus collapse. Poor citizens couldn't afford taxed Uber and faced hot or cold buses. This is the "Weathering the Ride" finding made real.`,
       research: "Christensen & Osman (2023): temperature increases shift bus riders to ride-hailing. Without AC, poor riders — who can't afford the alternative — are simply stranded.",
     });
   }
@@ -393,19 +396,24 @@ function diagnoseRun(history, finalBudget) {
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function getMonthEndMessage(stats, uberTax, bus, ac, budgetFraction, timedOut, roundIndex) {
-  if (timedOut) return pickRandom(ADVISOR.monthEndReactions.timedOut);
-  if (uberTax === 0 && bus === 0 && ac === 0) return pickRandom(ADVISOR.monthEndReactions.noPolicy);
-  if (budgetFraction < BUDGET_CONFIG.warningFraction) return pickRandom(ADVISOR.monthEndReactions.budgetWarning);
+  const r = ADVISOR.monthEndReactions;
+  if (timedOut) return pickRandom(r.timedOut);
+  if (uberTax === 0 && bus === 0 && ac === 0) return pickRandom(r.noPolicy);
+  if (budgetFraction < BUDGET_CONFIG.warningFraction) return pickRandom(r.budgetWarning);
+
   const ti = SEASONS.tempIndex[roundIndex];
-  if (stats.weatherAlert && ti > 0.5) return pickRandom(ADVISOR.monthEndReactions.heatNeedingAC);
-  if (stats.weatherAlert && ti < -0.5) return pickRandom(ADVISOR.monthEndReactions.coldNeedingAC);
-  if (stats.equityScore < SIMULATION.thresholds.equity.warning) return pickRandom(ADVISOR.monthEndReactions.equityGap);
+  if (stats.weatherAlert && ti > 0.5) return pickRandom(r.heatNeedingAC);
+  if (stats.weatherAlert && ti < -0.5) return pickRandom(r.coldNeedingAC);
+
+  if (stats.equityScore < SIMULATION.thresholds.equity.warning) return pickRandom(r.equityGap);
+
   const t = SIMULATION.thresholds;
-  if (stats.cityHappiness >= t.happiness.good) return pickRandom(ADVISOR.monthEndReactions.highHappiness);
-  if (stats.congestionLevel >= t.congestion.warning) return pickRandom(ADVISOR.monthEndReactions.highCongestion);
-  if (stats.cityMobility <= t.mobility.warning) return pickRandom(ADVISOR.monthEndReactions.lowMobility);
-  if (stats.monthlyDelta > 0) return pickRandom(ADVISOR.monthEndReactions.revenueGain);
-  return pickRandom(ADVISOR.monthEndReactions.balanced);
+  if (stats.cityHappiness >= t.happiness.good) return pickRandom(r.highHappiness);
+  if (stats.congestionLevel >= t.congestion.warning) return pickRandom(r.highCongestion);
+  if (stats.cityMobility <= t.mobility.warning) return pickRandom(r.lowMobility);
+  if (stats.monthlyDelta > 0) return pickRandom(r.revenueGain);
+
+  return pickRandom(r.balanced);
 }
 
 function getGrade(score) {
@@ -446,7 +454,7 @@ function InfoTip({ text }) {
   );
 }
 
-function GaugeBar({ label, value, type, tooltip, extra, subLabel }) {
+function GaugeBar({ label, value, type, tooltip, extra, subLabel, breakdown }) {
   const color = gc(value, type);
   const barW = type === "budget" ? value * 100 : Math.round(value);
   const display = type === "budget" ? `$${(value * BUDGET_CONFIG.annualBudget).toFixed(1)}M` : Math.round(value);
@@ -463,9 +471,21 @@ function GaugeBar({ label, value, type, tooltip, extra, subLabel }) {
           {extra && <span style={{ fontSize: 9, color: C.textFaint }}>{extra}</span>}
         </div>
       </div>
-      <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden", marginBottom: breakdown ? 6 : 0 }}>
         <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, barW))}%`, background: color, borderRadius: 3, transition: "width 0.35s ease, background 0.3s" }} />
       </div>
+      {breakdown && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {breakdown.map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: item.color }} />
+              <span style={{ fontSize: 9, color: C.textMuted, fontWeight: 600 }}>
+                {item.label}: <span style={{ color: item.value >= 0 ? C.green : C.red }}>{item.value >= 0 ? "+" : ""}{item.value.toFixed(1)}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -527,7 +547,7 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       {badge}
       <input type="range" min={0} max={100} step={5} value={value}
         onChange={e => !locked && onChange(Number(e.target.value))} disabled={locked}
-        style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer" }} />
+        style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer", touchAction: "none" }} />
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
         <span>0%</span><span>50%</span><span>100%</span>
       </div>
@@ -737,17 +757,17 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
           <div style={{ height: "100%", width: `${(roundIndex / 12) * 100}%`, background: C.blue, transition: "width 0.4s" }} />
         </div>
 
-        {/* CHANGE 2: AC collapse warning banner */}
+        {/* AC collapse warning banner */}
         {live.collapseActive && (
-          <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-            <span style={{ fontSize: 11, color: C.amber, fontWeight: 700 }}>Extreme weather — AC below 25% is triggering a bus collapse for poor riders · COLLAPSE ACTIVE 🔴</span>
+            <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>🔴 COLLAPSE ACTIVE — Extreme {live.tempIndex > 0 ? "heat" : "cold"} + AC below 15% is emptying buses. Poor riders are stranded.</span>
           </div>
         )}
         {!live.collapseActive && live.weatherAlert && (
-          <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-            <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>Extreme weather — buses uncomfortable without AC. Poor citizens hit hardest.</span>
+            <span style={{ fontSize: 11, color: C.amber, fontWeight: 700 }}>⚠️ Extreme {live.tempIndex > 0 ? "heat" : "cold"} — buses uncomfortable. Raising AC/heating levels will keep riders on buses.</span>
           </div>
         )}
 
@@ -833,7 +853,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
-          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
+          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={stats.happinessBreakdown} />
           <SplitGauge poorVal={poorMobility} richVal={richMobility} tooltip={ADVISOR.tooltips.mobility} />
           <GaugeBar label="Equity" value={equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} />
           <GaugeBar label="Congestion" value={congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
@@ -854,6 +874,19 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
             <div style={{ fontSize: 16, fontWeight: 800, color: gc(budgetFraction, "budget") }}>${budgetRemaining.toFixed(1)}M</div>
           </div>
         </div>
+
+        {/* Strategic Success Banner */}
+        {(acLevel >= 40 && Math.abs(stats.tempIndex) > 0.6 && stats.equityScore > 65) && (
+          <div style={{ background: C.purpleBg, border: `1px solid ${C.purpleBorder}`, borderRadius: 10, padding: "12px 14px", marginBottom: 12, display: "flex", gap: 10, alignItems: "center" }}>
+            <span style={{ fontSize: 20 }}>❄️</span>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.purple, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Strategic Success</div>
+              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.4 }}>
+                Your climate investment is working! High {stats.tempIndex > 0 ? "AC" : "heating"} levels are keeping the bus network viable for low-income riders despite the extreme weather.
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: 18 }}><AdvisorBox message={advisorMessage} /></div>
 
@@ -1019,7 +1052,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
           <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, borderLeft: `3px solid ${C.purple}`, paddingLeft: 10, margin: "0 0 10px" }}>{DEBRIEF.equityInsight}</p>
           <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.8, borderLeft: `3px solid ${C.cyan}`, paddingLeft: 10, margin: "0 0 10px" }}>{DEBRIEF.seasonInsight}</p>
           <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 7, padding: "9px 12px", marginTop: 10 }}>
-            <div style={{ fontSize: 10, color: C.blue, marginBottom: 4, fontWeight: 800 }}>🏙️ Up Next: City 4 — New Meridian</div>
+            <div style={{ fontSize: 10, color: C.blue, marginBottom: 4, fontWeight: 800 }}>🏙️ Up Next: City 4 — Crestwood</div>
             <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6 }}>{DEBRIEF.city4Teaser}</div>
           </div>
           <div style={{ fontSize: 9, color: C.textFaint, marginTop: 10 }}>{DEBRIEF.source}</div>
@@ -1077,7 +1110,7 @@ export default function GildedHollowTycoon() {
 
   const handleNext = useCallback(() => {
     if (roundIndex === 11) setScreen("yearEnd");
-    else { setRound(r => r + 1); setUber(0); setBus(0); setAC(0); setScreen("planning"); }
+    else { setRound(r => r + 1); setScreen("planning"); }
   }, [roundIndex]);
 
   const handleRestart = useCallback(() => {
@@ -1087,8 +1120,10 @@ export default function GildedHollowTycoon() {
   }, []);
 
   const handleContinue = useCallback(() => {
-    setSL(true); setRound(r => r + 1); setUber(0); setBus(0); setAC(0); setBudget(0); setScreen("planning");
-  }, []);
+    setSL(true);
+    if (roundIndex === 11) setScreen("yearEnd");
+    else { setRound(r => r + 1); setBudget(0); setScreen("planning"); }
+  }, [roundIndex]);
 
   if (screen === "intro") return <IntroScreen onStart={() => setScreen("planning")} />;
   if (screen === "gameOver") return <GameOverScreen month={gameOverMonth} onRestart={handleRestart} onContinue={handleContinue} />;

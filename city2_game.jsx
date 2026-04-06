@@ -112,16 +112,64 @@ const ADVISOR = {
     "Final month ❄️. Finish strong — remaining budget adds to your final score.",
   ],
   monthEndReactions: {
-    highHappiness: ["Great month! Mobility is strong, congestion manageable, and buses comfortable.", "Riverdale is moving well. Seasonal planning is paying off.", "Strong policy. Tax revenue funding real comfort and access."],
-    heatNeedingAC: ["Hot buses + high Uber tax = stranded riders. AC would have kept buses attractive this month.", "Heat without AC forces people off buses. Congestion follows.", "Extreme heat + low AC is a mobility crisis. Invest in climate control before next summer."],
-    coldNeedingAC: ["Cold buses + low AC = empty buses. Riders take Uber instead — congestion rises.", "Winter without bus heating hurts. AC is your most important lever in extreme months.", "Low-income riders can't afford both: a taxed Uber AND a cold bus. Heating is the solution."],
-    highCongestion: ["Roads are packed. Low Uber tax means cheap rides but clogged streets. Consider raising it.", "Too many cars. Uber tax would reduce congestion AND earn revenue.", "Gridlock. The weather is pushing people into Ubers — tax them to fund the solution."],
-    lowMobility: ["Mobility dropped. The Uber tax may be too high, or AC too low to keep buses viable.", "City isn't moving much. Ease the tax or boost bus comfort."],
-    budgetWarning: ["Budget thin. Uber tax is your income — make sure it's earning enough.", "Less than 20% remaining. Three cost streams vs one income stream — rebalance."],
-    revenueGain: ["Budget grew this month — tax revenue exceeded bus and AC costs. The model is working.", "Positive budget month. Keep this balance.", "Revenue positive. Consistent policy beats erratic swings."],
-    balanced: ["Solid month. Mobility decent, buses comfortable, budget stable.", "Steady and sustainable."],
-    noPolicy: ["No tax, no subsidy, no AC. Buses are uncomfortable, Uber unchecked, congestion high.", "Laissez-faire month. Weather and unchecked Uber stack the odds against the city."],
-    timedOut: ["Time ran out. Set AC first in extreme months — then tax and subsidy.", "The clock beat you. Hit End Turn earlier next month."],
+    highHappiness: [
+      "Great month! Mobility is strong, congestion manageable, and buses comfortable.",
+      "Riverdale is moving well. Seasonal planning is paying off.",
+      "Strong policy. Tax revenue funding real comfort and access.",
+      "Outstanding. You've hit the sweet spot of transport logic.",
+      "The city is thriving. Your balance of Uber tax and bus comfort is perfect."
+    ],
+    heatNeedingAC: [
+      "Hot buses + high Uber tax = stranded riders. AC would have kept buses attractive this month.",
+      "Heat without AC forces people off buses. Congestion follows.",
+      "Extreme heat + low AC is a mobility crisis. Invest in climate control before next summer.",
+      "The buses are like ovens. We're failing our primary transit users in this heat."
+    ],
+    coldNeedingAC: [
+      "Cold buses + low AC = empty buses. Riders take Uber instead — congestion rises.",
+      "Winter without bus heating hurts. AC is your most important lever in extreme months.",
+      "Low-income riders can't afford both: a taxed Uber AND a cold bus. Heating is the solution.",
+      "Buses are freezing. We need to reinvest tax revenue into better climate control."
+    ],
+    highCongestion: [
+      "Roads are packed. Low Uber tax means cheap rides but clogged streets. Consider raising it.",
+      "Too many cars. Uber tax would reduce congestion AND earn revenue.",
+      "Gridlock. The weather is pushing people into Ubers — tax them to fund the solution.",
+      "The city is grinding to a halt. If we don't tax these Ubers, they'll own the roads."
+    ],
+    lowMobility: [
+      "Mobility dropped. The Uber tax may be too high, or AC too low to keep buses viable.",
+      "City isn't moving much. Ease the tax or boost bus comfort.",
+      "Total movement is down. We need to ensure transportation remains affordable and comfortable."
+    ],
+    budgetWarning: [
+      "Budget thin. Uber tax is your income — make sure it's earning enough.",
+      "Less than 20% remaining. Three cost streams vs one income stream — rebalance.",
+      "Our reserves are low. We need to recalibrate the tax and subsidy balance."
+    ],
+    revenueGain: [
+      "Budget grew this month — tax revenue exceeded bus and AC costs. The model is working.",
+      "Positive budget month. Keep this balance.",
+      "Revenue positive. Consistent policy beats erratic swings.",
+      "We're in the black. The Uber tax is pulling its weight."
+    ],
+    balanced: [
+      "Solid month. Mobility decent, buses comfortable, budget stable.",
+      "Steady and sustainable.",
+      "No alarms this month. A consistent hand on the tiller.",
+      "Decent month. City is moving, traffic manageable, budget stable."
+    ],
+    noPolicy: [
+      "No tax, no subsidy, no AC. Buses are uncomfortable, Uber unchecked, congestion high.",
+      "Laissez-faire month. Weather and unchecked Uber stack the odds against the city.",
+      "Total deregulation this month. The roads are suffering from our inaction."
+    ],
+    timedOut: [
+      "Time ran out. Set AC first in extreme months — then tax and subsidy.",
+      "The clock beat you. Hit End Turn earlier next month.",
+      "Decision time expired. We're running with the existing policy.",
+      "Timer hit zero. Quicker decisions needed next time."
+    ],
   },
   tooltips: {
     happiness: "Overall citizen satisfaction. Driven by mobility, congestion, and budget stress. Extreme weather months can drag this down sharply without AC.",
@@ -239,15 +287,15 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const busIsConstraining = mobilityBeforeBus >= bus.mobilityFlipPoint && busSubsidy > 0;
   const weatherAlert = tempDiscomfort > 0.6 && acLevel < 30;
 
-  const hMob = (mobilityScore - baseline.mobilityScore) * 0.7;
-  const hCong = -(congestionPain) * 0.35;
-  const hBudg = -budgetStress * 25 * 0.3;
+  const hMob = mobilityGain * happiness.mobilityWeight;
+  const hCong = -congestionPain * happiness.congestionWeight;
+  const hBudg = -budgetStress * 25 * happiness.budgetStressWeight;
 
   return {
     mobilityScore, congestionLevel, happinessScore,
     monthlyDelta, uberRevenue, busCost, acCost,
     budgetStress, busIsConstraining, weatherAlert, collapseActive,
-    tempDiscomfort, mobilityBeforeBus,
+    tempDiscomfort, tempIndex: ti, mobilityBeforeBus,
     mobilityBreakdown: [
       { label: "Bus Boost", value: busEffect, color: C.green },
       { label: "Weather", value: -busTempPenalty, color: C.blue },
@@ -275,13 +323,13 @@ function diagnoseRun(history, finalBudget) {
 
   // Check for seasonal bus collapse
   const extremeMonths = history.filter((_, i) => Math.abs(SEASONS.tempIndex[i]) >= 0.7);
-  const collapseMonths = extremeMonths.filter(m => m.acLevel < 25 && m.mobilityScore < 40);
+  const collapseMonths = extremeMonths.filter(m => m.acLevel < 15 && m.mobilityScore < 40);
   if (collapseMonths.length >= 2) {
     failures.push({
       icon: "🌡️", color: C.amber, bg: C.amberBg, border: C.amberBorder,
       title: "Seasonal bus collapse",
-      body: `In ${collapseMonths.length} extreme weather months, AC was below 25% — triggering a bus collapse. Riders switched to Uber, congestion rose, and mobility fell sharply. This is the "Weathering the Ride" finding in action.`,
-      research: "Christensen & Osman (2023): temperature increases shift bus riders to ride-hailing. Without AC, the only viable alternative is a taxed Uber — which hurts everyone.",
+      body: `In ${collapseMonths.length} extreme weather months, AC was below 15% — triggering a bus collapse. Riders switched to Uber, congestion rose, and mobility fell sharply. This is the "Weathering the Ride" finding in action.`,
+      research: "Christensen & Osman (2023): extreme heat dampens the mobility increase from price cuts by 26%, as riders shift towards ride-hailing for climate control. Without AC, the system loses its primary equity tool during temperature spikes.",
     });
   }
   if (avgM < 44 && avgU > 55) {
@@ -322,18 +370,22 @@ function diagnoseRun(history, finalBudget) {
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function getMonthEndMessage(stats, uberTax, bus, ac, budgetFraction, timedOut, roundIndex) {
-  if (timedOut) return pickRandom(ADVISOR.monthEndReactions.timedOut);
-  if (uberTax === 0 && bus === 0 && ac === 0) return pickRandom(ADVISOR.monthEndReactions.noPolicy);
-  if (budgetFraction < BUDGET_CONFIG.warningFraction) return pickRandom(ADVISOR.monthEndReactions.budgetWarning);
+  const r = ADVISOR.monthEndReactions;
+  if (timedOut) return pickRandom(r.timedOut);
+  if (uberTax === 0 && bus === 0 && ac === 0) return pickRandom(r.noPolicy);
+  if (budgetFraction < BUDGET_CONFIG.warningFraction) return pickRandom(r.budgetWarning);
+  
   const ti = SEASONS.tempIndex[roundIndex];
-  if (stats.weatherAlert && ti > 0.5) return pickRandom(ADVISOR.monthEndReactions.heatNeedingAC);
-  if (stats.weatherAlert && ti < -0.5) return pickRandom(ADVISOR.monthEndReactions.coldNeedingAC);
+  if (stats.weatherAlert && ti > 0.5) return pickRandom(r.heatNeedingAC);
+  if (stats.weatherAlert && ti < -0.5) return pickRandom(r.coldNeedingAC);
+  
   const t = SIMULATION.thresholds;
-  if (stats.happinessScore >= t.happiness.good) return pickRandom(ADVISOR.monthEndReactions.highHappiness);
-  if (stats.congestionLevel >= t.congestion.warning) return pickRandom(ADVISOR.monthEndReactions.highCongestion);
-  if (stats.mobilityScore <= t.mobility.warning) return pickRandom(ADVISOR.monthEndReactions.lowMobility);
-  if (stats.monthlyDelta > 0) return pickRandom(ADVISOR.monthEndReactions.revenueGain);
-  return pickRandom(ADVISOR.monthEndReactions.balanced);
+  if (stats.happinessScore >= t.happiness.good) return pickRandom(r.highHappiness);
+  if (stats.congestionLevel >= t.congestion.warning) return pickRandom(r.highCongestion);
+  if (stats.mobilityScore <= t.mobility.warning) return pickRandom(r.lowMobility);
+  if (stats.monthlyDelta > 0) return pickRandom(r.revenueGain);
+  
+  return pickRandom(r.balanced);
 }
 
 function getGrade(score) {
@@ -434,7 +486,7 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       {badge}
       <input type="range" min={0} max={100} step={5} value={value}
         onChange={e => !locked && onChange(Number(e.target.value))} disabled={locked}
-        style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer" }} />
+        style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer", touchAction: "none" }} />
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
         <span>0%</span><span>50%</span><span>100%</span>
       </div>
@@ -657,13 +709,13 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
         {live.collapseActive && (
           <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-            <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>🔴 COLLAPSE ACTIVE — Extreme weather + AC below 25% is emptying buses. Riders are switching to Uber en masse.</span>
+            <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>🔴 COLLAPSE ACTIVE — Extreme {live.tempIndex > 0 ? "heat" : "cold"} + AC below 15% is emptying buses. Riders are switching to Uber en masse.</span>
           </div>
         )}
         {!live.collapseActive && live.weatherAlert && (
           <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
             <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-            <span style={{ fontSize: 11, color: C.amber, fontWeight: 700 }}>⚠️ Extreme weather — buses uncomfortable. Raising AC will keep riders on buses and reduce congestion.</span>
+            <span style={{ fontSize: 11, color: C.amber, fontWeight: 700 }}>⚠️ Extreme {live.tempIndex > 0 ? "heat" : "cold"} — buses uncomfortable. Raising AC/heating will keep riders on buses and reduce congestion.</span>
           </div>
         )}
 
@@ -692,18 +744,18 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
         {/* Live preview */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Live Preview</div>
-          <GaugeBar 
-            label="Happiness" 
-            value={live.happinessScore} 
-            type="happiness" 
-            tooltip={ADVISOR.tooltips.happiness} 
+          <GaugeBar
+            label="Happiness"
+            value={live.happinessScore}
+            type="happiness"
+            tooltip={ADVISOR.tooltips.happiness}
             breakdown={live.happinessBreakdown}
           />
-          <GaugeBar 
-            label="Mobility" 
-            value={live.mobilityScore} 
-            type="mobility" 
-            tooltip={ADVISOR.tooltips.mobility} 
+          <GaugeBar
+            label="Mobility"
+            value={live.mobilityScore}
+            type="mobility"
+            tooltip={ADVISOR.tooltips.mobility}
             breakdown={live.mobilityBreakdown}
           />
           <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
@@ -765,8 +817,8 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
-          <GaugeBar label="Happiness" value={happinessScore} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
-          <GaugeBar label="Mobility" value={mobilityScore} type="mobility" tooltip={ADVISOR.tooltips.mobility} />
+          <GaugeBar label="Happiness" value={happinessScore} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={stats.happinessBreakdown} />
+          <GaugeBar label="Mobility" value={mobilityScore} type="mobility" tooltip={ADVISOR.tooltips.mobility} breakdown={stats.mobilityBreakdown} />
           <GaugeBar label="Congestion" value={congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
           <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
         </div>
@@ -785,6 +837,19 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
             <div style={{ fontSize: 16, fontWeight: 800, color: gc(budgetFraction, "budget") }}>${budgetRemaining.toFixed(1)}M</div>
           </div>
         </div>
+
+        {/* Strategic Success Banner */}
+        {(stats.tempDiscomfort > 0.6 && acLevel >= 40) && (
+          <div style={{ background: C.purpleBg, border: `1px solid ${C.purpleBorder}`, borderRadius: 10, padding: "12px 14px", marginBottom: 12, display: "flex", gap: 10, alignItems: "center" }}>
+            <span style={{ fontSize: 20 }}>❄️</span>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.purple, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Strategic Success</div>
+              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.4 }}>
+                Your climate investment is working! High {stats.tempIndex > 0 ? "AC" : "heating"} levels are keeping the bus network viable despite the extreme weather.
+              </div>
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: 18 }}><AdvisorBox message={advisorMessage} /></div>
 
@@ -979,7 +1044,7 @@ export default function RiverdaleTycoonCity2() {
 
   const handleNext = useCallback(() => {
     if (roundIndex === 11) setScreen("yearEnd");
-    else { setRound(r => r + 1); setUber(0); setBus(0); setAC(0); setScreen("planning"); }
+    else { setRound(r => r + 1); setScreen("planning"); }
   }, [roundIndex]);
 
   const handleRestart = useCallback(() => {
@@ -989,8 +1054,10 @@ export default function RiverdaleTycoonCity2() {
   }, []);
 
   const handleContinue = useCallback(() => {
-    setSL(true); setRound(r => r + 1); setUber(0); setBus(0); setAC(0); setBudget(0); setScreen("planning");
-  }, []);
+    setSL(true);
+    if (roundIndex === 11) setScreen("yearEnd");
+    else { setRound(r => r + 1); setBudget(0); setScreen("planning"); }
+  }, [roundIndex]);
 
   if (screen === "intro") return <IntroScreen onStart={() => setScreen("planning")} />;
   if (screen === "gameOver") return <GameOverScreen month={gameOverMonth} onRestart={handleRestart} onContinue={handleContinue} />;

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import CityIntroFlow from "./CityIntro.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
+import CityIntroFlow from "./CityIntro";
 
 // ============================================================
 //  DESIGN TOKENS
@@ -28,7 +28,7 @@ const CITY_META = {
   name: "Crestwood",
   subtitle: "A city where the final barrier is safety",
   population: 300000,
-  intro: `Crestwood has 300,000 residents and faces the final, most complex barrier to mobility: gender safety. While seasons and congestion still matter, gender shapes who can safely use public transit at all. Women here are far less mobile than men because they do not feel safe on our buses. Price subsidies alone will not fix this. You now have the final lever: Bus Safety Investment. Use it to unlock the city for everyone. You have $50M for the year.`,
+  intro: `Crestwood has 300,000 people — and every challenge a transport director can face. Seasons disrupt bus comfort. Income inequality means the poor absorb Uber taxes worst. And gender shapes who can safely use public transit at all. Women here are less mobile than men — not because they want to be, but because they do not feel safe on buses. Price subsidies alone will not fix this. You have four levers: Uber tax, bus fare subsidy, bus AC & heating, and a new one — bus safety investment. Closing the gender gap requires that fourth lever. You have $50M for the year.`,
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -155,12 +155,46 @@ const SCORING = {
   ],
 };
 
+const CITY_INTRO_SLIDES = [
+  {
+    icon: "🏙️",
+    label: "Level 4: The Final Frontier",
+    title: "Welcome to Crestwood",
+    text: "Crestwood is a city of 300,000 people and your final challenge. Every mechanic you've learned comes together here: extreme seasons, income inequality, and a deep-seated gender gap in transit access.",
+    primary: true,
+    buttonText: "See the Challenge →"
+  },
+  {
+    icon: "♀️",
+    label: "New Lever: Bus Safety",
+    title: "Closing the Gender Gap",
+    text: "Women in Crestwood are 35% less mobile than men. Why? Because they don't feel safe on public transit. Bus fare subsidies help men, but they won't reach women unless you invest in safety (lighting, cameras, personnel).",
+    bullets: [
+      { icon: "🔒", text: "Safety Investment unlocks women's bus benefit", color: C.purple },
+      { icon: "📈", text: "Directly lifts women's baseline mobility", color: C.rose },
+      { icon: "💰", text: "Costs budget year-round", color: C.red }
+    ]
+  },
+  {
+    icon: "🌡️",
+    label: "Climate + Safety",
+    title: "The Double Barrier",
+    text: "Extreme weather compounds the gender gap. In peak summer or deep winter, uncomfortable buses repel all riders—but women, who already face safety concerns, are the first to be stranded.",
+    bullets: [
+      { icon: "❄️", text: "AC/Heating below 25% triggers bus collapse", color: C.blue },
+      { icon: "🚕", text: "Uber tax on the rich funds Safety AND AC", color: C.green }
+    ],
+    primary: true,
+    buttonText: "Start Final Level"
+  }
+];
+
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Welcome to Crestwood. This is the final challenge: gender equity. Seasonal weather and congestion are still factors, but the real barrier is bus safety. Women avoid public transit when they feel vulnerable, and expensive Ubers strand them. Your goal is to use all four levers—especially the new Safety Investment—to close the gender gap. 30 seconds per month.`,
+  gameIntro: `Welcome to Crestwood — the most complex city yet. Everything you've learned comes together here: seasonal weather, an income gap, and now a gender gap rooted in bus safety. Here, high Uber taxes on the wealthy provide the budget for our safety and climate systems. Without these progressive funds, we cannot build a transit system safe enough for women. Your goal is to use redistribution to close all equity gaps. 30 seconds per month.`,
   monthStartHints: [
-    "January 🥶 — Deep winter. Cold buses repel riders. Women avoid unsafe, cold buses doubly. AC and safety investment together keep them moving.",
-    "Still cold. Poor women face the hardest conditions — taxed Uber, cold buses, unsafe stops. Safety investment has a lasting effect.",
+    "January 🥶 — Deep winter. Cold buses repel riders. Wealthy riders provide our revenue through Uber taxes — reinvest that into bus heating now.",
+    "Still cold. Poor women face the hardest conditions. Safety investment and bus heating are your tools — funded by taxes on the rich.",
     "Winter easing. Good month to build up safety investment before summer heat arrives.",
     "Spring — mild. Buses naturally attractive. A good month to earn budget surplus and invest in safety.",
     "Late spring. Women's mobility gap is most visible now — bus subsidies work for men but stall for women without safety.",
@@ -175,7 +209,7 @@ const ADVISOR = {
   monthEndReactions: {
     highHappiness: ["All groups moving well — buses comfortable, safe, and affordable.", "The city is working for everyone. Mobility, equity, and safety aligned.", "Strong policy across all four levers. This is what integrated transport planning looks like."],
     genderGap: ["Women are still less mobile than men. Bus subsidies help men — they already use buses. Safety investment is what gets women onto them.", "The gender gap persists. Women have higher price sensitivity AND lower baseline bus use. Safety investment changes that.", "Taxed Uber + unsafe buses = stranded women. Increase safety investment to close this gap."],
-    incomeGap: ["Rich citizens absorb the Uber tax. The poor cannot — and they also rely on buses with less safety. Both levers need calibrating.", "Income gap widening. Poor riders are disproportionately hurt by Uber taxes and helped by bus+safety investment."],
+    incomeGap: ["Wealthy riders are still moving too freely compared to the poor. A higher Uber tax would bridge this gap while earning budget for the bus.", "The income gap is widening. Use the Uber tax as a wealth-leveller to ensure the poor aren't left behind."],
     heatNeedingAC: ["Extreme heat + low AC = bus collapse. Women disproportionately stranded when both AC and safety are low.", "Hot, unsafe buses are doubly repellent to women. This month needed more AC investment."],
     coldNeedingAC: ["Cold buses with low AC drove riders back to Uber — spiking congestion. Women especially avoid uncomfortable and unsafe buses.", "Bus heating is your seasonal equity tool. It keeps all riders on buses regardless of weather."],
     highCongestion: ["Roads clogged. A higher Uber tax would reduce congestion AND earn revenue to fund bus + safety investment.", "Too many cars. The tax is your income lever — use it to fund the other three."],
@@ -184,6 +218,7 @@ const ADVISOR = {
     revenueGain: ["Budget grew — tax revenue covers all three cost streams. This is the self-funding model working.", "Positive budget month. Keep this balance and equity will follow."],
     balanced: ["Steady policy. City moving, gaps narrowing, budget stable.", "All four levers calibrated. Compound this over the year."],
     noPolicy: ["No levers engaged. Buses unsafe, cold, unsubsidised. Women and the poor bear the full cost.", "Laissez-faire month. All three gaps — congestion, income, gender — widen without intervention."],
+    busConstraining: ["Bus subsidies are maxed out, but mobility is stalling. Poor and wealthy riders alike are hitting the bus capacity limit — try lowering the subsidy to save budget.", "Max bus subsidies have hit the ridership ceiling. You're spending budget without gaining more mobility. Consider reinvesting into safety or AC instead."],
     timedOut: ["Time ran out. In extreme months, set AC and safety first — then tax and subsidy.", "The clock beat you. Hit End Turn earlier next month."],
   },
   tooltips: {
@@ -193,49 +228,21 @@ const ADVISOR = {
     genderEquity: "100 minus the men/women mobility gap. Closes when safety investment is high. Bus subsidies alone don't close it — women avoid unsafe buses regardless of price.",
     incomeEquity: "100 minus the rich/poor mobility gap. Closes when bus subsidies are high and Uber tax is moderate. Heavy Uber tax widens this gap.",
     budget: "Remaining budget ($50M). Uber tax earns money. Bus, AC, and safety all cost money. AC costs scale with weather severity.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion. Hits women and the poor ~2–2.5× harder than men and the wealthy (fewer alternatives, higher price sensitivity).",
-    busSubsidy: "Bus fare discount. Strongly benefits poor men. Weakly benefits women unless safety investment is also high — women avoid unsafe buses regardless of price. Costs budget.",
-    acLevel: "Bus climate control. Below 25% in extreme weather triggers a bus collapse. Costs scale with temperature extremity. Reduces weather penalty for all groups.",
-    safetyLevel: "Safety cameras, lighting, security personnel at bus stops and on vehicles. Gates how much women benefit from bus subsidies. At 0%: women barely use buses. At 100%: full benefit. Also directly lifts women's baseline mobility. Costs budget year-round.",
+    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion. Hits wealthy riders ~2–3× harder than the poor—serving as a progressive funding source for safety and bus comfort.",
+    busSubsidy: "Bus fare discount. Strongly benefits poor riders. Funded by Uber taxes on the wealthy. Costs budget.",
+    acLevel: "Bus climate control. Essential for keeping all riders on buses. Funded by progressive Uber taxes.",
+    safetyLevel: "Safety cams and personnel. Essential for women's mobility. Funded by progressive Uber taxes on the rich.",
   },
 };
 
 const DEBRIEF = {
   coreInsight: `Christensen & Osman (2025) found that effects and welfare gains from Uber price changes are substantially larger for women, who are less mobile at baseline and perceive public transit as unsafe. A 50% Uber price reduction increased women's total weekly travel by 849 km — compared to 652 km for men. Women who felt unsafe on buses showed the largest response of all sub-groups.`,
   genderInsight: `The research shows women in Cairo have over twice the price elasticity of men for Uber services. This cuts both ways: cheap Uber is a huge welfare gain for women; expensive Uber (via taxation) strands them. The antidote is not cheaper Uber — it is making buses safe enough that women are willing to use them as an alternative.`,
-  incomeInsight: `Lower-income citizens have ~2.4× higher Uber price elasticity than the wealthy. Combined with the gender effect, poor women face the highest double-disadvantage: the most price-sensitive group AND the most safety-constrained bus users.`,
+  incomeInsight: `In Crestwood, Uber taxes serve as a progressive mechanism. Taxing wealthier riders provides the budget needed for high-quality, air-conditioned, and safe bus services for lower-income residents who are currently stranded.`,
   seasonInsight: `"Weathering the Ride" documents that temperature extremes shift bus riders to Uber. For women who already avoid buses due to safety concerns, cold or hot buses compound the barrier — making climate investment doubly important for gender equity.`,
   balanceInsight: `You found the full balance: moderate Uber tax funding bus subsidies, AC investment, AND safety investment. Safety is the key insight — you cannot close the gender gap through price alone.`,
   source: `Christensen & Osman (2025) "Demand for Mobility" · Christensen & Osman (2023) "Weathering the Ride"`,
 };
-
-const CITY_INTRO_SLIDES = [
-  {
-    icon: "🏙️",
-    label: "City 4: Crestwood",
-    title: "The Intersection of All Gaps",
-    text: "Crestwood is your ultimate test. With 300,000 residents, every challenge you've faced intersects here: seasons, income inequality, and the final barrier—gender safety.",
-  },
-  {
-    icon: "♀️🛡️",
-    label: "New Lever: Safety",
-    title: "Closing the Gender Gap",
-    text: "Women in Crestwood are less mobile because buses feel unsafe. Price subsidies alone won't help; you must invest in Safety to unlock transit for everyone.",
-  },
-  {
-    icon: "🏗️",
-    label: "Strategic Briefing",
-    title: "The Four-Lever Balance",
-    text: "You have $50M and four powerful levers: Uber Tax, Bus Subsidy, AC, and Safety Investment. Can you build a city that is truly equitable for all?",
-    bullets: [
-      { icon: "🛡️", text: "Safety Gates: Women must feel safe to use buses" },
-      { icon: "♀️♂️", text: "Gender Equity: now 30% of your final score" },
-      { icon: "💰", text: "Budget: $50M to balance four cost streams" }
-    ],
-    buttonText: "Take Office",
-    primary: true
-  }
-];
 
 // ============================================================
 //  SIMULATION ENGINE
@@ -250,9 +257,9 @@ function getTemp(roundIndex) {
 // Poor: ~2.4× steeper than rich (income elasticity finding)
 function uberLoss(tax, isWomen, isPoor) {
   const base = isPoor
-    ? (tax <= 30 ? tax * 0.42 : tax <= 60 ? 12.6 + (tax - 30) * 0.72 : 34.2 + (tax - 60) * 0.90)
-    : (tax <= 30 ? tax * 0.10 : tax <= 60 ? 3.0 + (tax - 30) * 0.26 : 10.8 + (tax - 60) * 0.36);
-  // Women pay an additional ~50% Uber loss on top of the income-based curve
+    ? (tax <= 30 ? tax * 0.12 : tax <= 60 ? 3.6 + (tax - 30) * 0.28 : 12.0 + (tax - 60) * 0.42)
+    : (tax <= 30 ? tax * 0.45 : tax <= 60 ? 13.5 + (tax - 30) * 0.85 : 39.0 + (tax - 60) * 1.30);
+  // Women still face the safety multiplier, but it's now applied to a progressive base
   return isWomen ? base * 1.50 : base;
 }
 
@@ -365,11 +372,23 @@ function simulate(uberTax, busSubsidy, acLevel, safetyLevel, roundIndex, budgetR
     POP.richWomenFrac * richWomenH +
     POP.richMenFrac * richMenH;
 
+  const hMobTotal = (
+    POP.poorWomenFrac * (poorWomenMob - POP.poorWomenBaseline) +
+    POP.poorMenFrac * (poorMenMob - POP.poorMenBaseline) +
+    POP.richWomenFrac * (richWomenMob - POP.richWomenBaseline) +
+    POP.richMenFrac * (richMenMob - POP.richMenBaseline)
+  ) * hw.mobilityWeight;
+  const hCongTotal = -(congestionLevel - SIMULATION.baseline.congestionLevel) * hw.congestionWeight;
+  const hSafeTotal = (POP.poorWomenFrac + POP.richWomenFrac) * (safetyLevel / 100) * safety.womenHappinessBonusPerPercent * 100 * 0.35;
+  const hBudgTotal = -budgetStress * 28 * hw.budgetStressWeight;
+
   const busIsConstraining = busSubsidy > 0 && (
     (POP.poorMenBaseline - uberLoss(uberTax, false, true)) >= bus.mobilityFlipPoint ||
-    (POP.richMenBaseline - uberLoss(uberTax, false, false)) >= bus.mobilityFlipPoint
+    (POP.richMenBaseline - uberLoss(uberTax, false, false)) >= bus.mobilityFlipPoint ||
+    (POP.poorWomenBaseline - uberLoss(uberTax, true, true)) >= bus.mobilityFlipPoint ||
+    (POP.richWomenBaseline - uberLoss(uberTax, true, false)) >= bus.mobilityFlipPoint
   );
-  const weatherAlert = tempDiscomfort > 0.6 && acLevel < 30;
+  const weatherAlert = tempDiscomfort > 0.6 && acMitigation < 0.35;
 
   return {
     cityMobility, womenMobility, menMobility, poorMobility, richMobility,
@@ -378,7 +397,13 @@ function simulate(uberTax, busSubsidy, acLevel, safetyLevel, roundIndex, budgetR
     cityHappiness, poorWomenH, poorMenH, richWomenH, richMenH,
     monthlyDelta, uberRevenue, busCost, acCost, safetyCost,
     budgetStress, busIsConstraining, weatherAlert, collapseActive,
-    tempDiscomfort, genderGap, incomeGap,
+    tempDiscomfort, tempIndex: ti, genderGap, incomeGap,
+    happinessBreakdown: [
+      { label: "Mobility", value: hMobTotal, color: C.blue },
+      { label: "Safety", value: hSafeTotal, color: C.purple },
+      { label: "Congestion", value: hCongTotal, color: C.amber },
+      { label: "Budget", value: hBudgTotal, color: C.red }
+    ]
   };
 }
 
@@ -410,17 +435,17 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "⚖️", color: C.purple, bg: C.purpleBg, border: C.purpleBorder,
       title: "Income gap persisted",
-      body: `Average income equity was ${Math.round(avgIE)}. Poor citizens absorbed the Uber tax hardest — their price elasticity is ~2.4× higher than the wealthy. Average bus subsidy was ${Math.round(avgB)}% — not enough to compensate. Bus investment is the equity correction for the poor.`,
-      research: "Research finding: lower-income elasticity is ~2.4× higher than wealthy citizens. Uniform Uber taxes are regressive without targeted bus reinvestment.",
+      body: `Average income equity was ${Math.round(avgIE)}. In Crestwood, Uber taxes primarily hit the wealthy — but you didn't reinvest enough into the poor. Average bus subsidy was only ${Math.round(avgB)}% — failing to leverage the top-down funding for the bottom-up need.`,
+      research: "Progressive urban transport: when luxury services are taxed, the resulting revenue must be aggressively reinvested into public transit to bridge baseline mobility gaps.",
     });
   }
   const extremeMonths = history.filter((_, i) => Math.abs(SEASONS.tempIndex[i]) >= 0.7);
-  const collapseMonths = extremeMonths.filter(m => m.acLevel < 25 && m.womenMobility < 32);
+  const collapseMonths = extremeMonths.filter(m => m.acLevel < 15 && m.womenMobility < 32);
   if (collapseMonths.length >= 2) {
     failures.push({
       icon: "🌡️", color: C.amber, bg: C.amberBg, border: C.amberBorder,
       title: "Seasonal collapse hit women hardest",
-      body: `In ${collapseMonths.length} extreme weather months, AC was below 25% and women's mobility fell below 32. Cold or hot buses without climate control doubly repel women — who already avoid unsafe buses. AC and safety investment work together.`,
+      body: `In ${collapseMonths.length} extreme weather months, AC was below 15% and women's mobility fell below 32. Cold or hot buses without climate control doubly repel women — who already avoid unsafe buses. AC and safety investment work together.`,
       research: "Weathering the Ride: extreme temperatures shift bus riders to ride-hailing. Women who already avoid buses due to safety face a compounded seasonal barrier.",
     });
   }
@@ -454,24 +479,28 @@ function diagnoseRun(history, finalBudget) {
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 function getMonthEndMessage(stats, uberTax, bus, ac, safety, budgetFraction, timedOut, roundIndex) {
-  if (timedOut) return pickRandom(ADVISOR.monthEndReactions.timedOut);
+  const r = ADVISOR.monthEndReactions;
+  if (timedOut) return pickRandom(r.timedOut);
   if (uberTax === 0 && bus === 0 && ac === 0 && safety === 0)
-    return pickRandom(ADVISOR.monthEndReactions.noPolicy);
+    return pickRandom(r.noPolicy);
   if (budgetFraction < BUDGET_CONFIG.warningFraction)
-    return pickRandom(ADVISOR.monthEndReactions.budgetWarning);
+    return pickRandom(r.budgetWarning);
   const ti = SEASONS.tempIndex[roundIndex];
-  if (stats.weatherAlert && ti > 0.5) return pickRandom(ADVISOR.monthEndReactions.heatNeedingAC);
-  if (stats.weatherAlert && ti < -0.5) return pickRandom(ADVISOR.monthEndReactions.coldNeedingAC);
+  if (stats.weatherAlert && ti > 0.5) return pickRandom(r.heatNeedingAC);
+  if (stats.weatherAlert && ti < -0.5) return pickRandom(r.coldNeedingAC);
+  if (stats.busIsConstraining) return pickRandom(r.busConstraining);
+
   if (stats.genderEquityScore < SIMULATION.thresholds.genderEquity.warning)
-    return pickRandom(ADVISOR.monthEndReactions.genderGap);
+    return pickRandom(r.genderGap);
   if (stats.incomeEquityScore < SIMULATION.thresholds.incomeEquity.warning)
-    return pickRandom(ADVISOR.monthEndReactions.incomeGap);
+    return pickRandom(r.incomeGap);
+
   const t = SIMULATION.thresholds;
-  if (stats.cityHappiness >= t.happiness.good) return pickRandom(ADVISOR.monthEndReactions.highHappiness);
-  if (stats.congestionLevel >= t.congestion.warning) return pickRandom(ADVISOR.monthEndReactions.highCongestion);
-  if (stats.cityMobility <= t.mobility.warning) return pickRandom(ADVISOR.monthEndReactions.lowMobility);
-  if (stats.monthlyDelta > 0) return pickRandom(ADVISOR.monthEndReactions.revenueGain);
-  return pickRandom(ADVISOR.monthEndReactions.balanced);
+  if (stats.cityHappiness >= t.happiness.good) return pickRandom(r.highHappiness);
+  if (stats.congestionLevel >= t.congestion.warning) return pickRandom(r.highCongestion);
+  if (stats.cityMobility <= t.mobility.warning) return pickRandom(r.lowMobility);
+  if (stats.monthlyDelta > 0) return pickRandom(r.revenueGain);
+  return pickRandom(r.balanced);
 }
 
 function getGrade(score) {
@@ -506,7 +535,7 @@ function InfoTip({ text }) {
   );
 }
 
-function GaugeBar({ label, value, type, tooltip, extra }) {
+function GaugeBar({ label, value, type, tooltip, extra, breakdown }) {
   const color = gc(value, type);
   const barW = type === "budget" ? value * 100 : Math.round(value);
   const display = type === "budget" ? `$${(value * BUDGET_CONFIG.annualBudget).toFixed(1)}M` : Math.round(value);
@@ -522,9 +551,21 @@ function GaugeBar({ label, value, type, tooltip, extra }) {
           {extra && <span style={{ fontSize: 9, color: C.textFaint }}>{extra}</span>}
         </div>
       </div>
-      <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden", marginBottom: breakdown ? 6 : 0 }}>
         <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, barW))}%`, background: color, borderRadius: 3, transition: "width 0.35s ease, background 0.3s" }} />
       </div>
+      {breakdown && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {breakdown.map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: item.color }} />
+              <span style={{ fontSize: 9, color: C.textMuted, fontWeight: 600 }}>
+                {item.label}: <span style={{ color: item.value >= 0 ? C.green : C.red }}>{item.value >= 0 ? "+" : ""}{item.value.toFixed(1)}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -595,7 +636,7 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       {badge}
       <input type="range" min={0} max={100} step={5} value={value}
         onChange={e => !locked && onChange(Number(e.target.value))} disabled={locked}
-        style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer" }} />
+        style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer", touchAction: "none" }} />
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
         <span>0%</span><span>50%</span><span>100%</span>
       </div>
@@ -766,10 +807,10 @@ function GameOverScreen({ month, onRestart, onContinue }) {
 // ============================================================
 function IntroScreen({ onStart }) {
   return (
-    <CityIntroFlow 
-      slides={CITY_INTRO_SLIDES} 
-      onComplete={onStart} 
-      colorTokens={C} 
+    <CityIntroFlow
+      slides={CITY_INTRO_SLIDES}
+      onComplete={onStart}
+      colorTokens={C}
     />
   );
 }
@@ -882,7 +923,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, safet
         {/* Live preview */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Live Preview</div>
-          <GaugeBar label="Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
+          <GaugeBar label="Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} />
           <GenderGauge womenVal={live.womenMobility} menVal={live.menMobility} tooltip={ADVISOR.tooltips.mobility} />
           <GaugeBar label="Gender Equity" value={live.genderEquityScore} type="genderEquity" tooltip={ADVISOR.tooltips.genderEquity} />
           <GaugeBar label="Income Equity" value={live.incomeEquityScore} type="incomeEquity" tooltip={ADVISOR.tooltips.incomeEquity} />
@@ -955,7 +996,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
-          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
+          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={stats.happinessBreakdown} />
           <GenderGauge womenVal={womenMobility} menVal={menMobility} tooltip={ADVISOR.tooltips.mobility} />
           <GaugeBar label="Gender Equity" value={genderEquityScore} type="genderEquity" tooltip={ADVISOR.tooltips.genderEquity} />
           <GaugeBar label="Income Equity" value={incomeEquityScore} type="incomeEquity" tooltip={ADVISOR.tooltips.incomeEquity} />
@@ -981,6 +1022,31 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
           </div>
         </div>
 
+        {/* Strategic Success Banners */}
+        {(acLevel >= 40 && Math.abs(stats.tempIndex) > 0.6 && stats.cityHappiness > 65) && (
+          <div style={{ background: C.purpleBg, border: `1px solid ${C.purpleBorder}`, borderRadius: 10, padding: "12px 14px", marginBottom: 12, display: "flex", gap: 10, alignItems: "center" }}>
+            <span style={{ fontSize: 20 }}>❄️</span>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.purple, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Strategic Success: Climate</div>
+              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.4 }}>
+                Your climate investment is working! High {stats.tempIndex > 0 ? "AC" : "heating"} levels are keeping the bus network viable despite the extreme weather.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(safetyLevel >= 50 && (stats.menMobility - stats.womenMobility) < 5 && stats.cityHappiness > 65) && (
+          <div style={{ background: C.roseBg, border: `1px solid ${C.roseBorder}`, borderRadius: 10, padding: "12px 14px", marginBottom: 12, display: "flex", gap: 10, alignItems: "center" }}>
+            <span style={{ fontSize: 20 }}>🛡️</span>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.rose, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Strategic Success: Safety</div>
+              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.4 }}>
+                Your high Safety investment is successfully bridging the mobility gap! Women now feel secure enough to use the bus network as effectively as men.
+              </div>
+            </div>
+          </div>
+        )}
+
         <div style={{ marginBottom: 18 }}><AdvisorBox message={advisorMessage} /></div>
 
         <button onClick={onNext} style={{ width: "100%", background: isLast ? C.green : C.rose, color: "white", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
@@ -1000,7 +1066,6 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
   const avgMM = history.reduce((s, m) => s + m.menMobility, 0) / history.length;
   const budFrac = finalBudget / BUDGET_CONFIG.annualBudget;
   const { weights } = SCORING;
-  const bonus = scoreless ? 0 : Math.max(0, budFrac * 100 * BUDGET_CONFIG.budgetBonusWeight);
   const rawScore = scoreless ? 0 :
     avgH * weights.happiness +
     avgGE * weights.genderEquity +
@@ -1220,7 +1285,7 @@ export default function CrestwoodTycoonCity4() {
 
   const handleNext = useCallback(() => {
     if (roundIndex === 11) setScreen("yearEnd");
-    else { setRound(r => r + 1); setUber(0); setBus(0); setAC(0); setSafety(0); setScreen("planning"); }
+    else { setRound(r => r + 1); setScreen("planning"); }
   }, [roundIndex]);
 
   const handleRestart = useCallback(() => {
@@ -1230,9 +1295,10 @@ export default function CrestwoodTycoonCity4() {
   }, []);
 
   const handleContinue = useCallback(() => {
-    setSL(true); setRound(r => r + 1); setUber(0); setBus(0); setAC(0); setSafety(0);
-    setBudget(0); setScreen("planning");
-  }, []);
+    setSL(true);
+    if (roundIndex === 11) setScreen("yearEnd");
+    else { setRound(r => r + 1); setBudget(0); setScreen("planning"); }
+  }, [roundIndex]);
 
   if (screen === "intro") return <IntroScreen onStart={() => setScreen("planning")} />;
   if (screen === "gameOver") return <GameOverScreen month={gameOverMonth} onRestart={handleRestart} onContinue={handleContinue} />;
