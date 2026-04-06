@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import CityIntroFlow from "./CityIntro.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 // ============================================================
@@ -141,6 +142,34 @@ const DEBRIEF = {
   source: `Christensen & Osman (2025) "Demand for Mobility" · Christensen & Osman (2023) "Weathering the Ride"`,
 };
 
+const CITY_INTRO_SLIDES = [
+  {
+    icon: "🌡️",
+    label: "City 2: Riverdale",
+    title: "Seasonal Struggles",
+    text: "Riverdale—200,000 residents, and far less forgiving. Smallville was predictable. Here, extreme heat and freezing cold can disrupt the entire system.",
+  },
+  {
+    icon: "❄️🔥",
+    label: "New Lever",
+    title: "Bus Climate Control",
+    text: "When it's too hot or cold, people ditch buses for Ubers, causing massive congestion. Investing in Bus AC & Heating is now critical to keep buses attractive.",
+  },
+  {
+    icon: "⚖️",
+    label: "Strategic Briefing",
+    title: "Balance the Seasons",
+    text: "Use Uber tax revenue to fund both bus subsidies and year-round climate control. Ignore the weather, and your transit system collapses.",
+    bullets: [
+      { icon: "🌡️", text: "AC levels below 25% trigger a bus collapse" },
+      { icon: "💰", text: "AC costs scale with temperature extremity" },
+      { icon: "🚌", text: "Keep buses comfortable to maintain mobility" }
+    ],
+    buttonText: "Take Office",
+    primary: true
+  }
+];
+
 // ============================================================
 //  SIMULATION ENGINE
 // ============================================================
@@ -210,11 +239,25 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const busIsConstraining = mobilityBeforeBus >= bus.mobilityFlipPoint && busSubsidy > 0;
   const weatherAlert = tempDiscomfort > 0.6 && acLevel < 30;
 
+  const hMob = (mobilityScore - baseline.mobilityScore) * 0.7;
+  const hCong = -(congestionPain) * 0.35;
+  const hBudg = -budgetStress * 25 * 0.3;
+
   return {
     mobilityScore, congestionLevel, happinessScore,
     monthlyDelta, uberRevenue, busCost, acCost,
     budgetStress, busIsConstraining, weatherAlert, collapseActive,
     tempDiscomfort, mobilityBeforeBus,
+    mobilityBreakdown: [
+      { label: "Bus Boost", value: busEffect, color: C.green },
+      { label: "Weather", value: -busTempPenalty, color: C.blue },
+      { label: "Uber Loss", value: -uberLoss, color: C.red }
+    ],
+    happinessBreakdown: [
+      { label: "Mobility", value: hMob, color: C.blue },
+      { label: "Congestion", value: hCong, color: C.amber },
+      { label: "Budget", value: hBudg, color: C.red }
+    ]
   };
 }
 
@@ -331,12 +374,12 @@ function InfoTip({ text }) {
   );
 }
 
-function GaugeBar({ label, value, type, tooltip, extra }) {
+function GaugeBar({ label, value, type, tooltip, extra, breakdown }) {
   const color = gc(value, type);
   const barW = type === "budget" ? value * 100 : Math.round(value);
   const display = type === "budget" ? `$${(value * BUDGET_CONFIG.annualBudget).toFixed(1)}M` : Math.round(value);
   return (
-    <div style={{ marginBottom: 11 }}>
+    <div style={{ marginBottom: 15 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
@@ -347,9 +390,21 @@ function GaugeBar({ label, value, type, tooltip, extra }) {
           {extra && <span style={{ fontSize: 9, color: C.textFaint }}>{extra}</span>}
         </div>
       </div>
-      <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+      <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden", marginBottom: breakdown ? 6 : 0 }}>
         <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, barW))}%`, background: color, borderRadius: 3, transition: "width 0.35s ease, background 0.3s" }} />
       </div>
+      {breakdown && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {breakdown.map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: item.color }} />
+              <span style={{ fontSize: 9, color: C.textMuted, fontWeight: 600 }}>
+                {item.label}: <span style={{ color: item.value >= 0 ? C.green : C.red }}>{item.value >= 0 ? "+" : ""}{item.value.toFixed(1)}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -535,25 +590,11 @@ function GameOverScreen({ month, onRestart, onContinue }) {
 // ============================================================
 function IntroScreen({ onStart }) {
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Georgia,serif", padding: 20 }}>
-      <div style={{ maxWidth: 460, textAlign: "center" }}>
-        <div style={{ fontSize: 50, marginBottom: 10 }}>🌡️</div>
-        <div style={{ fontSize: 10, letterSpacing: 4, color: C.blue, textTransform: "uppercase", marginBottom: 10 }}>Transport Tycoon · City 2</div>
-        <h1 style={{ fontSize: 38, fontWeight: 800, color: C.text, margin: "0 0 5px" }}>{CITY_META.name}</h1>
-        <p style={{ fontSize: 12, color: C.textMuted, marginBottom: 20, fontStyle: "italic" }}>{CITY_META.subtitle}</p>
-        <div style={{ marginBottom: 20 }}><AdvisorBox message={ADVISOR.gameIntro} /></div>
-        <p style={{ fontSize: 12, color: C.textSub, lineHeight: 1.75, marginBottom: 22 }}>{CITY_META.intro}</p>
-        <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginBottom: 24 }}>
-          {[["👥", "200k people"], ["💰", "$30M budget"], ["📅", "12 months"], ["⏱", "25 sec/month"], ["🚕", "Uber tax earns $"], ["🚌", "Bus subsidy costs $"], ["❄️🔥", "AC costs $ (scales with weather)"]].map(([icon, label]) => (
-            <div key={label} style={{ background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 7, padding: "6px 10px", fontSize: 10, color: C.textSub }}>{icon} {label}</div>
-          ))}
-        </div>
-        <button onClick={onStart} style={{ background: C.blue, color: "white", border: "none", borderRadius: 9, padding: "12px 32px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-          Start as Transport Director →
-        </button>
-        <p style={{ fontSize: 10, color: C.textFaint, marginTop: 8 }}>Hit End Turn when ready — or the timer decides</p>
-      </div>
-    </div>
+    <CityIntroFlow
+      slides={CITY_INTRO_SLIDES}
+      onComplete={onStart}
+      colorTokens={C}
+    />
   );
 }
 
@@ -651,8 +692,20 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
         {/* Live preview */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Live Preview</div>
-          <GaugeBar label="Happiness" value={live.happinessScore} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
-          <GaugeBar label="Mobility" value={live.mobilityScore} type="mobility" tooltip={ADVISOR.tooltips.mobility} />
+          <GaugeBar 
+            label="Happiness" 
+            value={live.happinessScore} 
+            type="happiness" 
+            tooltip={ADVISOR.tooltips.happiness} 
+            breakdown={live.happinessBreakdown}
+          />
+          <GaugeBar 
+            label="Mobility" 
+            value={live.mobilityScore} 
+            type="mobility" 
+            tooltip={ADVISOR.tooltips.mobility} 
+            breakdown={live.mobilityBreakdown}
+          />
           <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
           <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
         </div>

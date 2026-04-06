@@ -3,6 +3,7 @@ import OnboardingFlow from './onboarding.jsx';
 import TransportTycoon from './city1_game.jsx';
 import RiverdaleTycoon from './city2_game.jsx';
 import GildedHollowTycoon from './city3_game.jsx';
+import CrestwoodTycoon from './city4_game.jsx';
 
 function App() {
     const [activeComponent, setActiveComponent] = useState('menu');
@@ -17,6 +18,8 @@ function App() {
                 return <RiverdaleTycoon />;
             case 'city3':
                 return <GildedHollowTycoon />;
+            case 'city4':
+                return <CrestwoodTycoon />;
             default:
                 return (
                     <div style={{
@@ -38,18 +41,23 @@ function App() {
                             />
                             <TestCard
                                 title="City 1: Smallville"
-                                desc="Basic Simulation Lever"
+                                desc="Basic Simulation Levers"
                                 onClick={() => setActiveComponent('city1')}
                             />
                             <TestCard
                                 title="City 2: Riverdale"
-                                desc="Advanced Demographics"
+                                desc="Seasonal & Congestion Dynamics"
                                 onClick={() => setActiveComponent('city2')}
                             />
                             <TestCard
                                 title="City 3: Gilded Hollow"
-                                desc="Gender Safety & Equity Dynamics"
+                                desc="Income Inequality Dynamics"
                                 onClick={() => setActiveComponent('city3')}
+                            />
+                            <TestCard
+                                title="City 4: Crestwood"
+                                desc="Gender Safety & Equity Dynamics"
+                                onClick={() => setActiveComponent('city4')}
                             />
                         </div>
                     </div>

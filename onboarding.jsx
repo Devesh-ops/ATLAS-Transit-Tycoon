@@ -197,21 +197,21 @@ function ActionButton({ onClick, text, primary }) {
 const STORY_SCREENS = [
     {
         type: "narrative",
-        icon: "🌡️",
-        title: "Cities are getting hotter.",
-        text: "Extreme heat is no longer an anomaly. It is the new reality. As temperatures rise, the city's infrastructure weakens."
+        icon: "🤖🚗",
+        title: "Autonomous vehicles are everywhere.",
+        text: "What was once a futuristic dream is now a reality. Lower prices have led to a surge in individual use Ubers and AVs flood our streets."
     },
     {
         type: "narrative",
-        icon: "🛑",
-        title: "Transportation systems are under pressure.",
-        text: "Gridlock strangles the streets. Public transit struggles to keep up with demand and extreme weather."
+        icon: "🚦",
+        title: "The city is grinding to a halt.",
+        text: "Transport systems are already under pressure, and with more vehicles than ever, congestion is only getting worse."
     },
     {
         type: "narrative",
         icon: "🚶",
         title: "But people still need to move.",
-        text: "They need to get to work, to the hospital, to their families. The city cannot stop."
+        text: "People still need to get to work, to hospitals, to their families. The city cannot stop."
     },
     {
         type: "residents",
@@ -224,7 +224,7 @@ const STORY_SCREENS = [
             {
                 icon: "🚌",
                 role: "The Rider",
-                quote: "The buses are too hot in the afternoon. We need better cooling or frequent service."
+                quote: "The buses are too crowded and hot in the afternoon. We need better cooling or more frequent service."
             },
             {
                 icon: "🚗",
@@ -431,25 +431,10 @@ function MockGameUI({ tutorialStep }) {
             {/* Header Area */}
             <div style={{
                 display: "flex",
-                justifyContent: "space-between",
+                justifyContent: "flex-end",
                 marginBottom: 60,
-                position: "relative",
-                zIndex: tutorialStep === 2 ? 70 : 1
+                position: "relative"
             }}>
-                <div style={{
-                    background: tutorialStep === 2 ? "rgba(30, 41, 59, 1)" : "#0F172A",
-                    border: tutorialStep === 2 ? "1px solid #3B82F6" : "1px solid #1E293B",
-                    padding: "12px 24px",
-                    borderRadius: 8,
-                    boxShadow: tutorialStep === 2 ? "0 0 25px rgba(59, 130, 246, 0.4)" : "none",
-                    transition: "all 0.5s ease-in-out",
-                    transform: tutorialStep === 2 ? "scale(1.1)" : "scale(1)",
-                    opacity: tutorialStep === 2 || tutorialStep === undefined ? 1 : 0.4
-                }}>
-                    <div style={{ color: "#64748B", fontSize: 11, textTransform: "uppercase", marginBottom: 4 }}>Budget</div>
-                    <div style={{ color: "#10B981", fontSize: 20, fontWeight: 700 }}>$12,000,000</div>
-                </div>
-                
                 <div style={{
                     background: "#0F172A",
                     border: "1px solid #1E293B",
@@ -477,7 +462,7 @@ function MockGameUI({ tutorialStep }) {
                     transition: "all 0.5s ease-in-out",
                     boxShadow: tutorialStep === 0 ? "0 0 30px rgba(59, 130, 246, 0.3)" : "none"
                 }}>
-                    <h4 style={{ margin: "0 0 24px", color: "#F8FAFC", fontSize: 16 }}>Policy Controls</h4>
+                    <h4 style={{ margin: "0 0 24px", color: "#F8FAFC", fontSize: 16 }}>Set Policy</h4>
                     {[
                         { label: "Uber Tax", val: 40, color: "#3B82F6" },
                         { label: "Bus Subsidy", val: 70, color: "#10B981" }
@@ -507,16 +492,21 @@ function MockGameUI({ tutorialStep }) {
                     transition: "all 0.5s ease-in-out",
                     boxShadow: tutorialStep === 1 ? "0 0 30px rgba(59, 130, 246, 0.3)" : "none"
                 }}>
-                    <h4 style={{ margin: "0 0 24px", color: "#F8FAFC", fontSize: 16 }}>City Health Metrics</h4>
+                    <h4 style={{ margin: "0 0 24px", color: "#F8FAFC", fontSize: 16 }}>Live Preview</h4>
                     {[
                         { label: "Happiness", val: 82, color: "#10B981" },
                         { label: "Mobility", val: 65, color: "#3B82F6" },
-                        { label: "Congestion", val: 28, color: "#EF4444" }
+                        { label: "Congestion", val: 28, color: "#EF4444" },
+                        { label: "Budget", val: 100, color: "#10B981", display: "$12.0M" }
                     ].map((metric, i) => (
-                        <div key={i} style={{ marginBottom: 24 }}>
+                        <div key={i} style={{
+                            marginBottom: metric.label === "Budget" ? 0 : 24,
+                            transform: tutorialStep === 2 && metric.label === "Budget" ? "scale(1.05)" : "scale(1)",
+                            transition: "all 0.3s ease"
+                        }}>
                             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
                                 <span style={{ fontSize: 13, color: "#94A3B8" }}>{metric.label}</span>
-                                <span style={{ fontSize: 13, color: metric.color, fontWeight: 600 }}>{metric.val}%</span>
+                                <span style={{ fontSize: 13, color: metric.color, fontWeight: 600 }}>{metric.display || (metric.val + "%")}</span>
                             </div>
                             <div style={{ height: 10, background: "#1E293B", borderRadius: 5, overflow: "hidden" }}>
                                 <div style={{ height: "100%", width: `${metric.val}%`, background: metric.color }} />
@@ -540,16 +530,9 @@ const TUTORIAL_STEPS = [
     {
         icon: "📊",
         title: "Metric Bars",
-        text: "These gauges show the health of the city. Keep an eye on Happiness, Mobility, and Congestion. If they drop too low, your term might end early!",
+        text: "These gauges show the health of the city. Keep an eye on Happiness, Mobility, and Congestion. If they drop too low, your term might end early! Keep an eye on your funds. Implementing policies costs money, but some taxes can help you generate revenue. Don't let it hit zero!",
         spotlight: { top: "58%", left: "72%", width: "420px", height: "300px", transform: "translate(-50%, -50%)" },
         contentPosition: { top: "50%", left: "5%", transform: "translateY(-50%)" }
-    },
-    {
-        icon: "💰",
-        title: "City Budget",
-        text: "Keep an eye on your funds. Implementing policies costs money, but some taxes can help you generate revenue. Don't let it hit zero!",
-        spotlight: { top: "16.5%", left: "20%", width: "200px", height: "100px", transform: "translate(-50%, -50%)" },
-        contentPosition: { top: "35%", left: "20%", transform: "translateX(-50%)" }
     },
     {
         icon: "⚖️",
