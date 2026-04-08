@@ -454,10 +454,11 @@ function InfoTip({ text }) {
   );
 }
 
-function GaugeBar({ label, value, type, tooltip, extra, subLabel, breakdown }) {
+function GaugeBar({ label, value, type, tooltip, extra, subLabel, breakdown, target, prev }) {
   const color = gc(value, type);
   const barW = type === "budget" ? value * 100 : Math.round(value);
   const display = type === "budget" ? `$${(value * BUDGET_CONFIG.annualBudget).toFixed(1)}M` : Math.round(value);
+  const delta = (type !== "budget" && prev != null) ? Math.round(value) - Math.round(prev) : null;
   return (
     <div style={{ marginBottom: 11 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
@@ -468,12 +469,20 @@ function GaugeBar({ label, value, type, tooltip, extra, subLabel, breakdown }) {
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
           <span style={{ fontSize: 16, fontWeight: 700, color, fontVariantNumeric: "tabular-nums" }}>{display}</span>
+          {delta != null && delta !== 0 && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: delta > 0 ? C.green : C.red, marginLeft: 3 }}>
+              {delta > 0 ? `+${delta}` : delta}
+            </span>
+          )}
           {extra && <span style={{ fontSize: 9, color: C.textFaint }}>{extra}</span>}
         </div>
       </div>
       <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden", marginBottom: breakdown ? 6 : 0 }}>
         <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, barW))}%`, background: color, borderRadius: 3, transition: "width 0.35s ease, background 0.3s" }} />
       </div>
+      {target && (
+        <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2 }}>{target}</div>
+      )}
       {breakdown && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {breakdown.map((item, i) => (
@@ -532,7 +541,7 @@ function BusModeBadge({ poorMobilityB4Bus, busSubsidy }) {
   );
 }
 
-function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge }) {
+function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge, hint }) {
   return (
     <div style={{ marginBottom: 18, opacity: locked ? 0.5 : 1, transition: "opacity 0.3s" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
@@ -548,6 +557,9 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       <input type="range" min={0} max={100} step={5} value={value}
         onChange={e => !locked && onChange(Number(e.target.value))} disabled={locked}
         style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer", touchAction: "none" }} />
+      {hint && (
+        <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2, lineHeight: 1.4 }}>{hint}</div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
         <span>0%</span><span>50%</span><span>100%</span>
       </div>
@@ -692,6 +704,54 @@ function GameOverScreen({ month, onRestart, onContinue }) {
 // ============================================================
 //  SCREENS
 // ============================================================
+
+function StructuralBanner({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ fontSize: 9, fontWeight: 700, color: C.textMuted, background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 4, padding: "3px 7px", letterSpacing: 0.3 }}>
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction) {
+  const w = [];
+  if (uberTax > 60) w.push("Tax above 60% — poor riders hit the hardest (2.4× more elastic).");
+  if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6 && acLevel < 25) w.push("Extreme weather + AC below 25% — bus collapse risk.");
+  if (live.equityScore < 45) w.push("Income equity critically low — poor mobility lagging far behind rich.");
+  if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget draining.");
+  return w;
+}
+
+function generateChangeSummary(stats, prevStats, uberTax, busSubsidy, acLevel, roundIndex) {
+  const lines = [];
+  const tempHigh = Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6;
+  if (uberTax > 0) {
+    if (uberTax > 60) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% raised revenue — poor riders absorbed most of the mobility cost.` });
+    else if (uberTax > 30) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue — moderately shifted poor riders toward buses.` });
+    else lines.push({ icon: "💰", text: `Low Uber tax (${uberTax}%) — modest revenue, minimal mobility shift.` });
+  }
+  if (busSubsidy > 0) {
+    const equityHelped = stats.equityScore > (prevStats?.equityScore ?? 50);
+    lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) primarily helped poor riders — ${equityHelped ? "improved" : "maintained"} income equity.` });
+  }
+  if (tempHigh) {
+    if (acLevel < 25) lines.push({ icon: "🌡️", text: `Extreme weather + low AC (${acLevel}%) — bus collapse hit poor riders hardest.` });
+    else lines.push({ icon: "❄️", text: `Extreme weather, but AC at ${acLevel}% kept buses viable for both income groups.` });
+  }
+  if (stats.monthlyDelta < 0) lines.push({ icon: "📉", text: `Budget fell $${Math.abs(stats.monthlyDelta).toFixed(1)}M this month.` });
+  else lines.push({ icon: "📈", text: `Budget grew $${stats.monthlyDelta.toFixed(1)}M — surplus to reinvest.` });
+  if (prevStats) {
+    const eqDelta = Math.round(stats.equityScore) - Math.round(prevStats.equityScore);
+    if (Math.abs(eqDelta) >= 4) lines.push({ icon: eqDelta > 0 ? "⚖️" : "↘️", text: `Income equity ${eqDelta > 0 ? "improved" : "fell"} ${Math.abs(eqDelta)} pts vs last month.` });
+  }
+  return lines;
+}
+
 function IntroScreen({ onStart }) {
   return (
     <CityIntroFlow
@@ -771,6 +831,23 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
           </div>
         )}
 
+        <StructuralBanner items={["60% poor · 40% rich — each group responds to policy differently", "Income elasticity: poor riders are ~2.4× more sensitive to Uber tax"]} />
+
+        {(() => {
+          const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
+          const warnings = computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction);
+          if (warnings.length === 0) return null;
+          return (
+            <div style={{ marginBottom: 8 }}>
+              {warnings.map((w, i) => (
+                <div key={i} style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "5px 10px", fontSize: 10, color: C.amber, fontWeight: 700, marginBottom: 4 }}>
+                  ⚠️ {w}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         <div style={{ marginBottom: 10 }}><AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} /></div>
 
         {/* Policy card */}
@@ -779,22 +856,25 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
             <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Set Policy</span>
             {locked && <span style={{ fontSize: 10, color: C.red, fontWeight: 800 }}>🔒 LOCKED</span>}
           </div>
-          <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor} tooltip={ADVISOR.tooltips.uberTax} locked={locked} tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }} />
+          <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor} tooltip={ADVISOR.tooltips.uberTax} locked={locked} tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
+            hint="Raises revenue · hits poor riders 2.4× harder than rich · above 60% causes sharp mobility loss" />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor} tooltip={ADVISOR.tooltips.busSubsidy} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            badge={<BusModeBadge poorMobilityB4Bus={live.poorMobilityB4Bus} busSubsidy={busSubsidy} />} />
-          <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor} tooltip={ADVISOR.tooltips.acLevel} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }} />
+            badge={<BusModeBadge poorMobilityB4Bus={live.poorMobilityB4Bus} busSubsidy={busSubsidy} />}
+            hint="Helps poor riders most · funded by Uber tax · less effective above mobility 65" />
+          <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor} tooltip={ADVISOR.tooltips.acLevel} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
+            hint="Prevents weather-driven bus collapse · costs more in summer/winter" />
           <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
         </div>
 
         {/* Live preview */}
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Live Preview</div>
-          <GaugeBar label="City Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} />
+          <GaugeBar label="City Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} target="Goal: 65+" />
           <SplitGauge label="Happiness Split" poorVal={live.poorHappiness} richVal={live.richHappiness} targetVal={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
           <SplitGauge label="Mobility Split" poorVal={live.poorMobility} richVal={live.richMobility} targetVal={live.cityMobility} type="mobility" tooltip={ADVISOR.tooltips.mobility} />
-          <GaugeBar label="Equity" value={live.equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} />
-          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
-          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
+          <GaugeBar label="Equity" value={live.equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} target="Goal: 60+" />
+          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $6M" />
         </div>
 
         <button onClick={() => commitMonth(false)} disabled={locked}
@@ -807,6 +887,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
 }
 
 function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, advisorMessage, onNext, history, timedOut, budgetRemaining }) {
+  const prevStats = history.length >= 2 ? history[history.length - 2] : null;
   const { poorMobility, richMobility, congestionLevel, equityScore, cityHappiness, monthlyDelta, uberRevenue, busCost, acCost } = stats;
   const ytdH = Math.round(history.reduce((s, m) => s + m.cityHappiness, 0) / history.length);
   const ytdE = Math.round(history.reduce((s, m) => s + m.equityScore, 0) / history.length);
@@ -853,11 +934,11 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
-          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={stats.happinessBreakdown} />
+          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={stats.happinessBreakdown} target="Goal: 65+" prev={prevStats?.cityHappiness ?? null} />
           <SplitGauge poorVal={poorMobility} richVal={richMobility} tooltip={ADVISOR.tooltips.mobility} />
-          <GaugeBar label="Equity" value={equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} />
-          <GaugeBar label="Congestion" value={congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
-          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
+          <GaugeBar label="Equity" value={equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} target="Goal: 60+" prev={prevStats?.equityScore ?? null} />
+          <GaugeBar label="Congestion" value={congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" prev={prevStats?.congestionLevel ?? null} />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $6M" />
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 13px", marginBottom: 9, display: "flex", justifyContent: "space-between" }}>
@@ -889,6 +970,23 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
         )}
 
         <div style={{ marginBottom: 18 }}><AdvisorBox message={advisorMessage} /></div>
+
+        {/* Why this changed */}
+        {(() => {
+          const lines = generateChangeSummary(stats, prevStats, uberTax, busSubsidy, acLevel, roundIndex);
+          if (lines.length === 0) return null;
+          return (
+            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Why this changed</div>
+              {lines.map((line, i) => (
+                <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginBottom: 5 }}>
+                  <span style={{ fontSize: 13, flexShrink: 0, lineHeight: 1.3 }}>{line.icon}</span>
+                  <span style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>{line.text}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         <button onClick={onNext} style={{ width: "100%", background: isLast ? C.green : C.blue, color: "white", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
           {isLast ? "See Final Score →" : `Next: ${MONTHS[roundIndex + 1]} →`}
