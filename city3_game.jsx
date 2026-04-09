@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import CityIntroFlow from "./CityIntro.jsx";
+import CityRoadScene from "./CityRoadScene.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
 
 // ============================================================
@@ -454,10 +455,11 @@ function InfoTip({ text }) {
   );
 }
 
-function GaugeBar({ label, value, type, tooltip, extra, subLabel, breakdown }) {
+function GaugeBar({ label, value, type, tooltip, extra, subLabel, breakdown, target, prev }) {
   const color = gc(value, type);
   const barW = type === "budget" ? value * 100 : Math.round(value);
   const display = type === "budget" ? `$${(value * BUDGET_CONFIG.annualBudget).toFixed(1)}M` : Math.round(value);
+  const delta = (type !== "budget" && prev != null) ? Math.round(value) - Math.round(prev) : null;
   return (
     <div style={{ marginBottom: 11 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
@@ -468,12 +470,20 @@ function GaugeBar({ label, value, type, tooltip, extra, subLabel, breakdown }) {
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
           <span style={{ fontSize: 16, fontWeight: 700, color, fontVariantNumeric: "tabular-nums" }}>{display}</span>
+          {delta != null && delta !== 0 && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: delta > 0 ? C.green : C.red, marginLeft: 3 }}>
+              {delta > 0 ? `+${delta}` : delta}
+            </span>
+          )}
           {extra && <span style={{ fontSize: 9, color: C.textFaint }}>{extra}</span>}
         </div>
       </div>
       <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden", marginBottom: breakdown ? 6 : 0 }}>
         <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, barW))}%`, background: color, borderRadius: 3, transition: "width 0.35s ease, background 0.3s" }} />
       </div>
+      {target && (
+        <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2 }}>{target}</div>
+      )}
       {breakdown && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {breakdown.map((item, i) => (
@@ -532,7 +542,7 @@ function BusModeBadge({ poorMobilityB4Bus, busSubsidy }) {
   );
 }
 
-function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge }) {
+function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge, hint }) {
   return (
     <div style={{ marginBottom: 18, opacity: locked ? 0.5 : 1, transition: "opacity 0.3s" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
@@ -548,6 +558,9 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       <input type="range" min={0} max={100} step={5} value={value}
         onChange={e => !locked && onChange(Number(e.target.value))} disabled={locked}
         style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer", touchAction: "none" }} />
+      {hint && (
+        <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2, lineHeight: 1.4 }}>{hint}</div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
         <span>0%</span><span>50%</span><span>100%</span>
       </div>
@@ -692,6 +705,54 @@ function GameOverScreen({ month, onRestart, onContinue }) {
 // ============================================================
 //  SCREENS
 // ============================================================
+
+function StructuralBanner({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ fontSize: 9, fontWeight: 700, color: C.textMuted, background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 4, padding: "3px 7px", letterSpacing: 0.3 }}>
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction) {
+  const w = [];
+  if (uberTax > 60) w.push("Tax above 60% — poor riders hit the hardest (2.4× more elastic).");
+  if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6 && acLevel < 25) w.push("Extreme weather + AC below 25% — bus collapse risk.");
+  if (live.equityScore < 45) w.push("Income equity critically low — poor mobility lagging far behind rich.");
+  if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget draining.");
+  return w;
+}
+
+function generateChangeSummary(stats, prevStats, uberTax, busSubsidy, acLevel, roundIndex) {
+  const lines = [];
+  const tempHigh = Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6;
+  if (uberTax > 0) {
+    if (uberTax > 60) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% raised revenue — poor riders absorbed most of the mobility cost.` });
+    else if (uberTax > 30) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue — moderately shifted poor riders toward buses.` });
+    else lines.push({ icon: "💰", text: `Low Uber tax (${uberTax}%) — modest revenue, minimal mobility shift.` });
+  }
+  if (busSubsidy > 0) {
+    const equityHelped = stats.equityScore > (prevStats?.equityScore ?? 50);
+    lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) primarily helped poor riders — ${equityHelped ? "improved" : "maintained"} income equity.` });
+  }
+  if (tempHigh) {
+    if (acLevel < 25) lines.push({ icon: "🌡️", text: `Extreme weather + low AC (${acLevel}%) — bus collapse hit poor riders hardest.` });
+    else lines.push({ icon: "❄️", text: `Extreme weather, but AC at ${acLevel}% kept buses viable for both income groups.` });
+  }
+  if (stats.monthlyDelta < 0) lines.push({ icon: "📉", text: `Budget fell $${Math.abs(stats.monthlyDelta).toFixed(1)}M this month.` });
+  else lines.push({ icon: "📈", text: `Budget grew $${stats.monthlyDelta.toFixed(1)}M — surplus to reinvest.` });
+  if (prevStats) {
+    const eqDelta = Math.round(stats.equityScore) - Math.round(prevStats.equityScore);
+    if (Math.abs(eqDelta) >= 4) lines.push({ icon: eqDelta > 0 ? "⚖️" : "↘️", text: `Income equity ${eqDelta > 0 ? "improved" : "fell"} ${Math.abs(eqDelta)} pts vs last month.` });
+  }
+  return lines;
+}
+
 function IntroScreen({ onStart }) {
   return (
     <CityIntroFlow
@@ -734,79 +795,138 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
   const warn = timeLeft <= TIMER.warningAt && timeLeft > 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", padding: "14px", outline: warn ? `3px solid ${C.red}` : "3px solid transparent", outlineOffset: "-3px", transition: "outline 0.3s" }}>
+    <div style={{
+      height: "100vh", background: C.pageBg, fontFamily: "Georgia,serif",
+      display: "flex", flexDirection: "column", overflow: "hidden",
+      outline: warn ? `3px solid ${C.red}` : "3px solid transparent",
+      outlineOffset: "-3px", transition: "outline 0.3s",
+    }}>
       {ending && <MonthEndingOverlay month={month} />}
-      <div style={{ maxWidth: 600, margin: "0 auto" }}>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-          <div>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 3 · {CITY_META.name}</div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: "2px 0 0" }}>{month}</h2>
+      {/* ── TOP BAR ─────────────────────────────────────────── */}
+      <div style={{
+        flexShrink: 0, display: "flex", alignItems: "center", gap: 12,
+        padding: "8px 16px", background: C.cardBg,
+        borderBottom: `1px solid ${C.border}`,
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+      }}>
+        <div style={{ minWidth: 110 }}>
+          <div style={{ fontSize: 9, letterSpacing: 2, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 3 · {CITY_META.name}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{month}</div>
+        </div>
+        <SeasonBadge roundIndex={roundIndex} />
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 9, color: C.textFaint }}>
+            <span>Jan</span>
+            <span style={{ color: C.blue, fontWeight: 700 }}>{roundIndex + 1}/12</span>
+            <span>Dec</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <SeasonBadge roundIndex={roundIndex} />
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 9, color: C.textFaint }}>Month</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.textSub }}>{roundIndex + 1}/12</div>
+          <div style={{ height: 5, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${((roundIndex + 1) / 12) * 100}%`, background: C.blue, borderRadius: 3, transition: "width 0.4s" }} />
+          </div>
+        </div>
+        {(() => {
+          const budgetColor = gc(budgetFraction, "budget");
+          return (
+            <div style={{
+              background: budgetColor === C.green ? C.greenBg : budgetColor === C.amber ? C.amberBg : C.redBg,
+              border: `1px solid ${budgetColor === C.green ? C.greenBorder : budgetColor === C.amber ? C.amberBorder : C.redBorder}`,
+              borderRadius: 8, padding: "5px 12px", textAlign: "center", minWidth: 88,
+            }}>
+              <div style={{ fontSize: 9, color: C.textFaint, textTransform: "uppercase", letterSpacing: 1 }}>Budget</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: budgetColor }}>${budgetRemaining.toFixed(1)}M</div>
             </div>
-            <CountdownRing timeLeft={timeLeft} total={TIMER.monthDuration} />
-          </div>
-        </div>
+          );
+        })()}
+        <CountdownRing timeLeft={timeLeft} total={TIMER.monthDuration} />
+        <button onClick={() => commitMonth(false)} disabled={locked} style={{
+          background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff",
+          border: "none", borderRadius: 8, padding: "10px 18px",
+          fontSize: 14, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer",
+          transition: "background 0.2s", whiteSpace: "nowrap",
+        }}>
+          {locked ? "⏳ Locking..." : "✓ End Turn"}
+        </button>
+      </div>
 
-        <div style={{ height: 3, background: C.track, borderRadius: 2, marginBottom: 10, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${(roundIndex / 12) * 100}%`, background: C.blue, transition: "width 0.4s" }} />
-        </div>
+      {/* ── 3-COLUMN BODY ───────────────────────────────────── */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* AC collapse warning banner */}
-        {live.collapseActive && (
-          <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-            <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>🔴 COLLAPSE ACTIVE — Extreme {live.tempIndex > 0 ? "heat" : "cold"} + AC below 15% is emptying buses. Poor riders are stranded.</span>
+        {/* LEFT: Policy sliders */}
+        <div style={{
+          width: 272, flexShrink: 0, overflowY: "auto",
+          padding: "14px 16px", borderRight: `1px solid ${C.border}`,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+            Set Policy {locked && <span style={{ color: C.red }}>🔒</span>}
           </div>
-        )}
-        {!live.collapseActive && live.weatherAlert && (
-          <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-            <span style={{ fontSize: 11, color: C.amber, fontWeight: 700 }}>⚠️ Extreme {live.tempIndex > 0 ? "heat" : "cold"} — buses uncomfortable. Raising AC/heating levels will keep riders on buses.</span>
-          </div>
-        )}
 
-        <div style={{ marginBottom: 10 }}><AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} /></div>
+          {live.collapseActive && (
+            <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 10px", marginBottom: 10, display: "flex", gap: 7, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 15 }}>{SEASONS.seasonIcon[roundIndex]}</span>
+              <span style={{ fontSize: 10, color: C.red, fontWeight: 700, lineHeight: 1.4 }}>🔴 COLLAPSE — Extreme {live.tempIndex > 0 ? "heat" : "cold"} + AC below 15%. Poor riders stranded.</span>
+            </div>
+          )}
+          {!live.collapseActive && live.weatherAlert && (
+            <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 10px", marginBottom: 10, display: "flex", gap: 7, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 15 }}>{SEASONS.seasonIcon[roundIndex]}</span>
+              <span style={{ fontSize: 10, color: C.amber, fontWeight: 700, lineHeight: 1.4 }}>⚠️ Extreme {live.tempIndex > 0 ? "heat" : "cold"} — raise AC to keep buses attractive.</span>
+            </div>
+          )}
 
-        {/* Policy card */}
-        <div style={{ background: C.cardBg, border: `1px solid ${warn ? C.red : C.border}`, borderRadius: 12, padding: "14px 14px 6px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", transition: "border 0.3s" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Set Policy</span>
-            {locked && <span style={{ fontSize: 10, color: C.red, fontWeight: 800 }}>🔒 LOCKED</span>}
-          </div>
-          <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor} tooltip={ADVISOR.tooltips.uberTax} locked={locked} tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }} />
+          <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor} tooltip={ADVISOR.tooltips.uberTax} locked={locked} tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
+            hint="Raises revenue · hits poor 2.4× harder than rich" />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor} tooltip={ADVISOR.tooltips.busSubsidy} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            badge={<BusModeBadge poorMobilityB4Bus={live.poorMobilityB4Bus} busSubsidy={busSubsidy} />} />
-          <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor} tooltip={ADVISOR.tooltips.acLevel} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }} />
+            badge={<BusModeBadge poorMobilityB4Bus={live.poorMobilityB4Bus} busSubsidy={busSubsidy} />}
+            hint="Helps poor riders most · funded by Uber tax" />
+          <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor} tooltip={ADVISOR.tooltips.acLevel} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
+            hint="Prevents weather-driven collapse" />
           <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
         </div>
 
-        {/* Live preview */}
-        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Live Preview</div>
+        {/* CENTER: City road visualization */}
+        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+          <CityRoadScene
+            cityLevel={3}
+            uberTax={uberTax}
+            busSubsidy={busSubsidy}
+            congestion={live.congestionLevel}
+            seasonIcon={SEASONS.seasonIcon[roundIndex]}
+          />
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0,
+            padding: "10px 14px",
+            background: "rgba(255,255,255,0.93)",
+            backdropFilter: "blur(4px)",
+            borderTop: `1px solid ${C.border}`,
+          }}>
+            <AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} />
+          </div>
+        </div>
+
+        {/* RIGHT: Metrics */}
+        <div style={{
+          width: 272, flexShrink: 0, overflowY: "auto",
+          padding: "14px 16px", borderLeft: `1px solid ${C.border}`,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Live Preview</div>
           <GaugeBar label="City Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} />
           <SplitGauge label="Happiness Split" poorVal={live.poorHappiness} richVal={live.richHappiness} targetVal={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
           <SplitGauge label="Mobility Split" poorVal={live.poorMobility} richVal={live.richMobility} targetVal={live.cityMobility} type="mobility" tooltip={ADVISOR.tooltips.mobility} />
           <GaugeBar label="Equity" value={live.equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} />
           <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
           <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
+          <div style={{ fontSize: 10, color: C.textFaint, marginTop: 4 }}>
+            +${live.uberRevenue.toFixed(2)} tax &nbsp;−${live.busCost.toFixed(2)} bus &nbsp;−${live.acCost.toFixed(2)} AC
+          </div>
         </div>
-
-        <button onClick={() => commitMonth(false)} disabled={locked}
-          style={{ width: "100%", background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "13px", fontSize: 15, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer", transition: "background 0.2s" }}>
-          {locked ? "⏳ Locking in..." : `✓ End Turn — Lock in ${month}'s Policy`}
-        </button>
       </div>
     </div>
   );
 }
 
 function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, advisorMessage, onNext, history, timedOut, budgetRemaining }) {
+  const prevStats = history.length >= 2 ? history[history.length - 2] : null;
   const { poorMobility, richMobility, congestionLevel, equityScore, cityHappiness, monthlyDelta, uberRevenue, busCost, acCost } = stats;
   const ytdH = Math.round(history.reduce((s, m) => s + m.cityHappiness, 0) / history.length);
   const ytdE = Math.round(history.reduce((s, m) => s + m.equityScore, 0) / history.length);
@@ -853,11 +973,11 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
-          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={stats.happinessBreakdown} />
+          <GaugeBar label="Happiness" value={cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={stats.happinessBreakdown} target="Goal: 65+" prev={prevStats?.cityHappiness ?? null} />
           <SplitGauge poorVal={poorMobility} richVal={richMobility} tooltip={ADVISOR.tooltips.mobility} />
-          <GaugeBar label="Equity" value={equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} />
-          <GaugeBar label="Congestion" value={congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
-          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
+          <GaugeBar label="Equity" value={equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} target="Goal: 60+" prev={prevStats?.equityScore ?? null} />
+          <GaugeBar label="Congestion" value={congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" prev={prevStats?.congestionLevel ?? null} />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $6M" />
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: "9px 13px", marginBottom: 9, display: "flex", justifyContent: "space-between" }}>
@@ -889,6 +1009,23 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
         )}
 
         <div style={{ marginBottom: 18 }}><AdvisorBox message={advisorMessage} /></div>
+
+        {/* Why this changed */}
+        {(() => {
+          const lines = generateChangeSummary(stats, prevStats, uberTax, busSubsidy, acLevel, roundIndex);
+          if (lines.length === 0) return null;
+          return (
+            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Why this changed</div>
+              {lines.map((line, i) => (
+                <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginBottom: 5 }}>
+                  <span style={{ fontSize: 13, flexShrink: 0, lineHeight: 1.3 }}>{line.icon}</span>
+                  <span style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>{line.text}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         <button onClick={onNext} style={{ width: "100%", background: isLast ? C.green : C.blue, color: "white", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
           {isLast ? "See Final Score →" : `Next: ${MONTHS[roundIndex + 1]} →`}
