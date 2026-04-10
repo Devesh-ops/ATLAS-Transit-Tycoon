@@ -756,7 +756,6 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             badge={<BusModeBadge mobilityBeforeBus={mobilityB4Bus} busSubsidy={busSubsidy} />}
             hint="Boosts mobility when city is under-served · less effective above mobility 65"
           />
-
           <BudgetDeltaPreview delta={live.monthlyDelta} />
 
           {warnings.length > 0 && (
@@ -796,10 +795,24 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
           padding: "14px 16px", borderLeft: `1px solid ${C.border}`,
         }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Live Preview</div>
-          <GaugeBar label="Happiness" value={live.happinessScore} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} />
-          <GaugeBar label="Mobility" value={live.mobilityScore} type="mobility" tooltip={ADVISOR.tooltips.mobility} breakdown={live.mobilityBreakdown} />
-          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
-          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} />
+          <GaugeBar
+            label="Happiness"
+            value={live.happinessScore}
+            type="happiness"
+            tooltip={ADVISOR.tooltips.happiness}
+            breakdown={live.happinessBreakdown}
+            target="Goal: 65+"
+          />
+          <GaugeBar
+            label="Mobility"
+            value={live.mobilityScore}
+            type="mobility"
+            tooltip={ADVISOR.tooltips.mobility}
+            breakdown={live.mobilityBreakdown}
+            target="Target: 55–75"
+          />
+          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} target="Safe zone: above $2.4M" />
           <div style={{ fontSize: 10, color: C.textFaint, marginTop: 4 }}>
             +${live.uberRevenue.toFixed(2)} tax &nbsp;−${live.busCost.toFixed(2)} bus
           </div>

@@ -964,15 +964,15 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel,
             tooltip={ADVISOR.tooltips.uberTax} locked={locked}
             tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
             badge={<TaxZoneWarning tax={uberTax} />}
-            hint="Women & poor are most price-elastic (sensitive to tax)" />
+            hint="Raises revenue · women and poor riders are most elastic (sensitive to price)" />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
             tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            hint="Helps poor men most — women get ~15% due to safety barrier" />
+            hint="Helps poor men most · women receive only ~15% of benefit due to safety barrier" />
           <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor}
             tooltip={ADVISOR.tooltips.acLevel} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            hint="Women face double barrier in extreme weather without AC" />
+            hint="Keeps buses viable in heat/cold · women face double barrier in extreme weather" />
           <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
 
           {warnings.length > 0 && (
@@ -1012,12 +1012,12 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel,
           padding: "14px 16px", borderLeft: `1px solid ${C.border}`,
         }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Live Preview</div>
-          <GaugeBar label="Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} />
+          <GaugeBar label="Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} target="Goal: 65+" />
           <GenderGauge womenVal={live.womenMobility} menVal={live.menMobility} tooltip={ADVISOR.tooltips.mobility} />
-          <GaugeBar label="Gender Equity" value={live.genderEquityScore} type="genderEquity" tooltip={ADVISOR.tooltips.genderEquity} />
-          <GaugeBar label="Income Equity" value={live.incomeEquityScore} type="incomeEquity" tooltip={ADVISOR.tooltips.incomeEquity} />
-          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
-          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
+          <GaugeBar label="Gender Equity" value={live.genderEquityScore} type="genderEquity" tooltip={ADVISOR.tooltips.genderEquity} target="Goal: 62+ (gap is structural, narrows slowly)" />
+          <GaugeBar label="Income Equity" value={live.incomeEquityScore} type="incomeEquity" tooltip={ADVISOR.tooltips.incomeEquity} target="Goal: 60+" />
+          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $10M" />
           <div style={{ marginTop: 10 }}>
             <GroupBreakdown poorW={live.poorWomenMob} poorM={live.poorMenMob} richW={live.richWomenMob} richM={live.richMenMob} />
           </div>

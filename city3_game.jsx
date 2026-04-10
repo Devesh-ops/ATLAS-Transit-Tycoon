@@ -875,12 +875,12 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
           )}
 
           <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor} tooltip={ADVISOR.tooltips.uberTax} locked={locked} tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
-            hint="Raises revenue · hits poor 2.4× harder than rich" />
+            hint="Raises revenue · hits poor riders 2.4× harder than rich · above 60% causes sharp mobility loss" />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor} tooltip={ADVISOR.tooltips.busSubsidy} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
             badge={<BusModeBadge poorMobilityB4Bus={live.poorMobilityB4Bus} busSubsidy={busSubsidy} />}
-            hint="Helps poor riders most · funded by Uber tax" />
+            hint="Helps poor riders most · funded by Uber tax · less effective above mobility 65" />
           <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor} tooltip={ADVISOR.tooltips.acLevel} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            hint="Prevents weather-driven collapse" />
+            hint="Prevents weather-driven bus collapse · costs more in summer/winter" />
           <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
         </div>
 
@@ -910,12 +910,12 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
           padding: "14px 16px", borderLeft: `1px solid ${C.border}`,
         }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Live Preview</div>
-          <GaugeBar label="City Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} />
+          <GaugeBar label="City Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} target="Goal: 65+" />
           <SplitGauge label="Happiness Split" poorVal={live.poorHappiness} richVal={live.richHappiness} targetVal={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
           <SplitGauge label="Mobility Split" poorVal={live.poorMobility} richVal={live.richMobility} targetVal={live.cityMobility} type="mobility" tooltip={ADVISOR.tooltips.mobility} />
-          <GaugeBar label="Equity" value={live.equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} />
-          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
-          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} />
+          <GaugeBar label="Equity" value={live.equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} target="Goal: 60+" />
+          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $6M" />
           <div style={{ fontSize: 10, color: C.textFaint, marginTop: 4 }}>
             +${live.uberRevenue.toFixed(2)} tax &nbsp;−${live.busCost.toFixed(2)} bus &nbsp;−${live.acCost.toFixed(2)} AC
           </div>
