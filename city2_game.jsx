@@ -227,11 +227,9 @@ function getTemp(roundIndex) {
   return { tempIndex: ti, tempDiscomfort: Math.abs(ti) };
 }
 
-// Non-linear Uber mobility loss — single population, slightly steeper than City 1
+// Linear Uber mobility loss
 function uberMobilityLoss(tax) {
-  if (tax <= 30) return tax * 0.18;
-  if (tax <= 60) return 5.4 + (tax - 30) * 0.50;
-  return 20.4 + (tax - 60) * 0.72;
+  return tax * 0.50;
 }
 
 function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {

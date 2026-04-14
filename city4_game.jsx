@@ -251,15 +251,12 @@ function getTemp(roundIndex) {
   return { tempIndex: ti, tempDiscomfort: Math.abs(ti) };
 }
 
-// Non-linear Uber mobility loss curves, per group.
-// Women: ~1.5× steeper than men — higher Uber price sensitivity because buses
-// are not a safe substitute (structural gender barrier, not a player-controlled variable).
-// Poor: ~2.4× steeper than rich (income elasticity finding, City 3).
+// Linear Uber mobility loss - separate rates for each group
+// Women: ~1.5× steeper than men (higher Uber price sensitivity)
+// Poor: ~2.4× steeper than rich (income elasticity)
 function uberLoss(tax, isWomen, isPoor) {
-  const base = isPoor
-    ? (tax <= 30 ? tax * 0.12 : tax <= 60 ? 3.6 + (tax - 30) * 0.28 : 12.0 + (tax - 60) * 0.42)
-    : (tax <= 30 ? tax * 0.45 : tax <= 60 ? 13.5 + (tax - 30) * 0.85 : 39.0 + (tax - 60) * 1.30);
-  return isWomen ? base * SIMULATION.gender.womenUberElasticityMultiplier : base;
+  const baseRate = isPoor ? 0.28 : 0.90;
+  return isWomen ? tax * baseRate * SIMULATION.gender.womenUberElasticityMultiplier : tax * baseRate;
 }
 
 function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {

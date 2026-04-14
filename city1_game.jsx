@@ -209,21 +209,16 @@ const CITY_INTRO_SLIDES = [
 //  SIMULATION ENGINE
 // ============================================================
 
-// Non-linear Uber mobility loss
-// 0–30%: gentle (barely felt)
-// 30–60%: steep middle zone
-// 60–100%: punishing cliff
+// Linear Uber mobility loss
 function uberMobilityLoss(tax) {
-  if (tax <= 30) return tax * 0.15;
-  if (tax <= 60) return 4.5 + (tax - 30) * 0.45;
-  return 18 + (tax - 60) * 0.70;
+  return tax * 0.40;
 }
 
 // roundIndex is used to apply the AV congestion boost in January and February
 function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
   const { baseline, uber, bus, happiness } = SIMULATION;
 
-  // 1. Mobility — non-linear Uber loss, bus flip mechanic
+  // 1. Mobility — linear Uber loss, bus flip mechanic
   const uberLoss = uberMobilityLoss(uberTax);
   const mobilityBeforeBus = baseline.mobilityScore - uberLoss;
   const busEffect = mobilityBeforeBus < bus.mobilityFlipPoint

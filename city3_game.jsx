@@ -204,20 +204,14 @@ function getTemp(roundIndex) {
   return { tempIndex: ti, tempDiscomfort: Math.abs(ti) };
 }
 
-// BUG FIX: Two clean separate loss curves.
-// Old version had tangled (scale * 3.3) factors that barely moved rich mobility.
-// Now: poor lose steeply (up to −69pts at max tax), rich lose modestly but visibly.
+// Linear Uber mobility loss - separate rates for poor and rich
 function uberMobilityLoss(tax, isPoor) {
   if (isPoor) {
-    // Poor are less sensitive and rely on Uber for basic essentials
-    if (tax <= 30) return tax * 0.12;
-    if (tax <= 60) return 3.6 + (tax - 30) * 0.30;
-    return 12.6 + (tax - 60) * 0.45;
+    // Poor riders - moderate sensitivity
+    return tax * 0.30;
   } else {
-    // Wealthy riders are the primary users; tax hits their mobility steeply
-    if (tax <= 30) return tax * 0.45;
-    if (tax <= 60) return 13.5 + (tax - 30) * 0.85;
-    return 39.0 + (tax - 60) * 1.30;
+    // Rich riders - high sensitivity
+    return tax * 0.90;
   }
 }
 
