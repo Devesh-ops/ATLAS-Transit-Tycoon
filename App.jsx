@@ -13,13 +13,13 @@ function App() {
             case 'onboarding':
                 return <OnboardingFlow onComplete={() => setActiveComponent('menu')} />;
             case 'city1':
-                return <TransportTycoon onAdvance={() => setActiveComponent('city2')} />;
+                return <TransportTycoon />;
             case 'city2':
-                return <RiverdaleTycoon onAdvance={() => setActiveComponent('city3')} />;
+                return <RiverdaleTycoon />;
             case 'city3':
-                return <GildedHollowTycoon onAdvance={() => setActiveComponent('city4')} />;
+                return <GildedHollowTycoon />;
             case 'city4':
-                return <CrestwoodTycoon onAdvance={() => setActiveComponent('menu')} />;
+                return <CrestwoodTycoon />;
             default:
                 return (
                     <div style={{

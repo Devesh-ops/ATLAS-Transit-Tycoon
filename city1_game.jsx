@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import CityIntroFlow from "./CityIntro.jsx";
 import CityRoadScene from "./CityRoadScene.jsx";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 // ============================================================
 //  DESIGN TOKENS
@@ -15,10 +15,7 @@ const C = {
   amber: "#92400E", amberBg: "#FFFBEB", amberBorder: "#FCD34D",
   red: "#991B1B", redBg: "#FFF1F1", redBorder: "#FECACA",
   purple: "#6D28D9", purpleBg: "#F5F3FF", purpleBorder: "#C4B5FD",
-  cyan: "#0E7490", cyanBg: "#ECFEFF", cyanBorder: "#A5F3FC",
-  rose: "#9F1239", roseBg: "#FFF1F3", roseBorder: "#FECDD3",
-  teal: "#0F766E", tealBg: "#F0FDFA", tealBorder: "#99F6E4",
-  uberColor: "#B91C1C", busColor: "#1B4FD8", acColor: "#0E7490",
+  uberColor: "#B91C1C", busColor: "#1B4FD8",
   track: "#E2DDD6", overlay: "rgba(26,23,20,0.78)",
 };
 
@@ -29,11 +26,11 @@ const CITY_META = {
   name: "Smallville",
   subtitle: "Where autonomous vehicles just arrived",
   population: 50000,
-  intro: `Smallville has 50,000 people. Autonomous vehicles just flooded the city — Uber prices have crashed, everyone is using them, and congestion is rising. You have a $12M annual budget. Watch the first two months: your Uber tax slider is unavailable until March. Then it's your job to bring things back to normal using two sliders — Uber tax (raises revenue, cuts congestion) and bus subsidies (costs money, helps mobility when city is under-mobile).`,
+  intro: `Smallville has 50,000 people. Autonomous vehicles just flooded the city — Uber prices have crashed, everyone is using them, and congestion is rising. You have a $12M annual budget. Watch the first two months: your Uber tax lever is unavailable until March. Then it's your job to bring things back to normal using two levers — Uber tax (raises revenue, cuts congestion) and bus subsidies (costs money, helps mobility when city is under-mobile).`,
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const TIMER = { monthDuration: 40, warningAt: 8, endingDuration: 1200 };
+const TIMER = { monthDuration: 20, warningAt: 5, endingDuration: 1200 };
 
 // Non-linear Uber tax: three zones match Cairo research finding that large price
 // changes cause sharp mode-switching, while moderate changes barely shift behaviour.
@@ -89,7 +86,7 @@ const SCORING = {
 
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Hi, I'm Maya. Autonomous vehicles just arrived in Smallville — Uber is cheap, everyone's using it, and congestion is climbing. For January and February you can't tax Uber yet — just watch what happens to congestion. From March, the Uber tax slider is yours: it raises revenue AND cuts congestion. Use that revenue to fund bus subsidies. 40 seconds per month — or hit End Turn.`,
+  gameIntro: `Hi, I'm Maya. Autonomous vehicles just arrived in Smallville — Uber is cheap, everyone's using it, and congestion is climbing. For January and February you can't tax Uber yet — just watch what happens to congestion. From March, the Uber tax lever is yours: it raises revenue AND cuts congestion. Use that revenue to fund bus subsidies. 20 seconds per month — or hit End Turn.`,
   monthStartHints: [
     "January — autonomous vehicles just arrived. Uber is cheap and roads are packing up. 🚨 Your Uber tax is locked this month — watch the congestion build. Bus subsidies are still available.",
     "February — congestion is still rising unchecked. The Uber tax unlocks next month. Use buses if you want, but the real fix is coming.",
@@ -172,11 +169,11 @@ const ADVISOR = {
 
 const DEBRIEF = {
   coreInsight: "Economists Christensen & Osman (Cairo, 2025) found that a 50% Uber price cut increased total mobility ~49.5% but raised low-occupancy vehicle trips ~60% and congestion ~20%. Critically the effect is non-linear — moderate price changes shift behaviour little, but large changes cause sharp mode-switching. This is why low tax felt gentle and high tax felt brutal.",
-  congestionInsight: "High Uber usage pushed external costs up. In Cairo, a 50% Uber price drop would increase congestion, emissions and accident costs by ~0.7% of the city's GDP. Pricing Uber up is one of the few sliders that simultaneously cuts congestion and raises public revenue.",
+  congestionInsight: "High Uber usage pushed external costs up. In Cairo, a 50% Uber price drop would increase congestion, emissions and accident costs by ~0.7% of the city's GDP. Pricing Uber up is one of the few levers that simultaneously cuts congestion and raises public revenue.",
   mobilityInsight: "Heavy Uber tax without a strong bus alternative leaves people stranded. Research shows enormous latent demand — welfare gains from a 50% Uber price cut equalled ~17% of the average Cairo participant's monthly income. Tax too hard, and that welfare disappears.",
   balanceInsight: "You found the balance: moderate Uber tax funding a meaningful bus subsidy. This is the real-world policy prescription — use ride-hailing taxes to cross-subsidize public transport.",
   budgetInsight: "Uber tax revenue compounds across the year. Consistent modest taxation is more sustainable than lurching between high and low rates.",
-  city2Teaser: "In City 2 — Riverdale — the seasons change everything. Heatwaves and cold snaps drive people off buses and into Ubers. Bus climate control becomes your critical slider.",
+  city2Teaser: "In City 2 — Riverdale — the seasons change everything. Heatwaves and cold snaps drive people off buses and into Ubers. Bus climate control becomes your critical lever.",
   source: `Christensen & Osman (2025) "Demand for Mobility" · Christensen & Osman (2023) "Weathering the Ride"`,
 };
 
@@ -197,7 +194,7 @@ const CITY_INTRO_SLIDES = [
     icon: "🔒",
     label: "Strategic Briefing",
     title: "Rules of Engagement",
-    text: "Your Uber tax slider is LOCKED for January and February. Watch the impact of unregulated AVs, then take full control in March.",
+    text: "Your Uber tax lever is LOCKED for January and February. Watch the impact of unregulated AVs, then take full control in March.",
     bullets: [
       { icon: "💰", text: "Uber Tax earns revenue & cuts congestion" },
       { icon: "🚌", text: "Bus Subsidies help mobility increase while balancing congestion" },
@@ -237,15 +234,16 @@ function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
   // 2. Congestion — AV boost for first two months (January, February)
   //    AVs arrived, prices crashed → extra cars on the road
   const avBoost = roundIndex < 2 ? 15 : 0;
-  const uberEffect = -uberTax * uber.congestionReductionPerPercent;
-  const busCongestionEffect = -busSubsidy * bus.congestionOffsetPerPercent;
   const congestionLevel = Math.min(100, Math.max(5,
-    baseline.congestionLevel + avBoost + uberEffect + busCongestionEffect
+    baseline.congestionLevel + avBoost
+    - uberTax * uber.congestionReductionPerPercent
+    - busSubsidy * bus.congestionOffsetPerPercent
   ));
 
   // 3. Budget delta
-  const uberRevenue = (uberTax / 100) * BUDGET_CONFIG.uberRevenueRate * congestionLevel * 100;
-  const busCost = (busSubsidy / 100) * BUDGET_CONFIG.busCostRate * mobilityScore * 100;
+  const activity = (mobilityScore + congestionLevel) / 2;
+  const uberRevenue = (uberTax / 100) * BUDGET_CONFIG.uberRevenueRate * activity * 100;
+  const busCost = (busSubsidy / 100) * BUDGET_CONFIG.busCostRate * activity * 100;
   const monthlyDelta = +(uberRevenue - busCost).toFixed(3);
 
   // 4. Budget stress
@@ -274,20 +272,13 @@ function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
     mobilityScore, congestionLevel, happinessScore, monthlyDelta, uberRevenue, busCost, budgetStress,
     busIsConstraining, revenuePositive, taxZone,
     mobilityBreakdown: [
-      { label: "Base", value: baseline.mobilityScore },
-      { label: "Uber Tax", value: -uberLoss, color: C.uberColor },
-      { label: "Bus Mode Shift", value: busEffect, color: C.busColor }
-    ],
-    congestionBreakdown: [
-      { label: "Base + AV", value: baseline.congestionLevel + avBoost },
-      { label: "Uber Tax", value: uberEffect, color: C.uberColor },
-      { label: "Bus Mode Shift", value: busCongestionEffect, color: C.busColor }
+      { label: "Bus Boost", value: busEffect, color: C.green },
+      { label: "Uber Loss", value: -uberLoss, color: C.red }
     ],
     happinessBreakdown: [
-      { label: "Base", value: baseline.happinessScore },
       { label: "Mobility", value: hMob, color: C.blue },
       { label: "Congestion", value: hCong, color: C.amber },
-      ...(hBudg < 0 ? [{ label: "Budget", value: hBudg, color: C.red }] : [])
+      { label: "Budget", value: hBudg, color: C.red }
     ]
   };
 }
@@ -348,93 +339,38 @@ function getMonthEndMessage(stats, uberTax, bus, budgetFraction, timedOut) {
   if (timedOut) return pickRandom(r.timedOut);
   if (uberTax === 0 && bus === 0) return pickRandom(r.noPolicy);
   if (budgetFraction < BUDGET_CONFIG.warningFraction) return pickRandom(r.budgetWarning);
-
+  
   if (stats.busIsConstraining && bus > 40) return pickRandom(r.busConstraining);
-
+  
   const t = SIMULATION.thresholds;
   if (stats.happinessScore >= t.happiness.good) return pickRandom(r.highHappiness);
   if (stats.congestionLevel >= t.congestion.warning) return pickRandom(r.highCongestion);
   if (stats.mobilityScore <= t.mobility.warning) return pickRandom(r.lowMobility);
   if (stats.revenuePositive) return pickRandom(r.revenueGain);
-
+  
   return pickRandom(r.balanced);
-}
-
-function gc(value, type) {
-  const t = SIMULATION.thresholds && SIMULATION.thresholds[type]
-    ? SIMULATION.thresholds[type]
-    : { good: 65, warning: 40, safe: 0.1 };
-
-  let ratio = 0;
-  if (type === "congestion") {
-    if (value <= t.good) ratio = 1;
-    else if (value >= t.warning + 25) ratio = 0;
-    else ratio = Math.max(0, 1 - (value - t.good) / (t.warning + 25 - t.good));
-  } else if (type === "budget") {
-    if (value >= t.safe) ratio = 1;
-    else if (value <= t.warning / 2) ratio = 0;
-    else ratio = Math.max(0, (value - t.warning / 2) / (t.safe - t.warning / 2));
-  } else {
-    if (value >= t.good) ratio = 1;
-    else if (value <= t.warning - 15) ratio = 0;
-    else ratio = Math.max(0, (value - (t.warning - 15)) / (t.good - (t.warning - 15)));
-  }
-  const hue = ratio * 140;
-  return `hsl(${hue}, 86%, 46%)`;
 }
 
 function getGrade(score) {
   return SCORING.grades.find(g => score >= g.min) || SCORING.grades[SCORING.grades.length - 1];
 }
 
-function calculateProjection(history, currentBudget, roundIndex) {
-  const monthsElapsed = history.length || 0;
-  if (monthsElapsed === 0) return { score: 50, grade: getGrade(50) };
-
-  const avgHappiness = history.reduce((s, h) => s + h.happinessScore, 0) / monthsElapsed;
-  const avgDelta = (currentBudget - BUDGET_CONFIG.annualBudget) / monthsElapsed;
-  const projectedBudgetFrac = Math.max(0, currentBudget + (avgDelta * (12 - monthsElapsed))) / BUDGET_CONFIG.annualBudget;
-  const projectedScore = avgHappiness + (projectedBudgetFrac * BUDGET_CONFIG.budgetBonusWeight * 100);
-
-  return {
-    score: projectedScore,
-    grade: getGrade(projectedScore)
-  };
-}
-
-function PerformanceHeader({ projection, goalGrade = "B" }) {
-  return (
-    <div style={{
-      background: C.cardBg,
-      borderBottom: `1px solid ${C.border}`,
-      padding: "16px 24px",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      position: "sticky",
-      top: 0,
-      zIndex: 100
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
-        <div style={{
-          background: projection.grade.color,
-          color: "white",
-          padding: "4px 10px",
-          borderRadius: 6,
-          fontSize: 18,
-          fontWeight: 900
-        }}>
-          {projection.grade.grade}
-        </div>
-        <div style={{ fontSize: 13, color: C.textSub, fontWeight: 600 }}>{projection.grade.label}</div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Goal</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.textSub }}>{goalGrade} or above to Win</div>
-      </div>
-    </div>
-  );
+function gc(value, type) {
+  const t = SIMULATION.thresholds[type];
+  if (!t) return C.textMuted;
+  if (type === "congestion") {
+    if (value <= t.good) return C.green;
+    if (value <= t.warning) return C.amber;
+    return C.red;
+  }
+  if (type === "budget") {
+    if (value >= t.safe) return C.green;
+    if (value >= t.warning) return C.amber;
+    return C.red;
+  }
+  if (value >= t.good) return C.green;
+  if (value >= t.warning) return C.amber;
+  return C.red;
 }
 
 // ============================================================
@@ -453,19 +389,26 @@ function InfoTip({ text }) {
   );
 }
 
-function GaugeBar({ label, value, type, tooltip, extra, breakdown, target }) {
+function GaugeBar({ label, value, type, tooltip, extra, breakdown, target, prev, subLabel }) {
   const color = gc(value, type);
   const barW = type === "budget" ? value * 100 : Math.round(value);
   const display = type === "budget" ? `$${(value * BUDGET_CONFIG.annualBudget).toFixed(1)}M` : Math.round(value);
+  const delta = (type !== "budget" && prev != null) ? Math.round(value) - Math.round(prev) : null;
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: C.textSub, letterSpacing: 1, textTransform: "uppercase" }}>{label}</span>
+          {subLabel && <span style={{ fontSize: 9, color: C.textFaint }}>{subLabel}</span>}
           <InfoTip text={tooltip} />
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
           <span style={{ fontSize: 16, fontWeight: 700, color, fontVariantNumeric: "tabular-nums" }}>{display}</span>
+          {delta != null && delta !== 0 && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: delta > 0 ? C.green : C.red, marginLeft: 3 }}>
+              {delta > 0 ? `+${delta}` : delta}
+            </span>
+          )}
           {extra && <span style={{ fontSize: 9, color: C.textFaint }}>{extra}</span>}
         </div>
       </div>
@@ -473,7 +416,7 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown, target }) {
         <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, barW))}%`, background: color, borderRadius: 3, transition: "width 0.35s ease, background 0.3s" }} />
       </div>
       {target && (
-         <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2 }}>{target}</div>
+        <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2 }}>{target}</div>
       )}
       {breakdown && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -517,7 +460,7 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       <input type="range" min={0} max={100} step={5} value={value}
         onChange={e => !locked && onChange(Number(e.target.value))} disabled={locked}
         style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer", touchAction: "none" }} />
-       {hint && (
+      {hint && (
         <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2, lineHeight: 1.4 }}>{hint}</div>
       )}
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
@@ -600,9 +543,9 @@ function PoliticalLossScreen({ month, onRestart, onContinue }) {
         <div style={{ fontSize: 54, marginBottom: 10 }}>🗳️</div>
         <div style={{ fontSize: 11, letterSpacing: 3, color: C.purple, textTransform: "uppercase", marginBottom: 8, fontWeight: 800 }}>Political Ejection</div>
         <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 10px" }}>You've been voted out</h2>
-        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below {SIMULATION.politicalFloor}. {CITY_META.name} needs a new Transport Director.</p>
+        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below 30. Smallville needs a new Transport Director.</p>
         <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>Removed in <strong>{month}</strong>. Sustained low happiness signals policy failure — not just a bad month.</p>
-        <div style={{ marginBottom: 22 }}><AdvisorBox message={`Three consecutive months of deep unhappiness is a political signal, not just a number. Check whether the Uber tax was too high without bus compensation.`} /></div>
+        <div style={{ marginBottom: 22 }}><AdvisorBox message="Three consecutive months of deep unhappiness is a political signal, not just a number. Check whether the Uber tax was too high without bus compensation." /></div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onRestart} style={{ flex: 1, background: C.purple, color: "#fff", border: "none", borderRadius: 9, padding: "13px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>↺ Try Again</button>
           <button onClick={onContinue} style={{ flex: 1, background: C.cardBg, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 9, padding: "13px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Continue (no score)</button>
@@ -618,7 +561,7 @@ function GameOverScreen({ month, onRestart, onContinue }) {
       <div style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 52, marginBottom: 10 }}>💸</div>
         <div style={{ fontSize: 10, letterSpacing: 4, color: C.red, textTransform: "uppercase", marginBottom: 8 }}>Budget Depleted</div>
-        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>{CITY_META.name} Bankrupt</h2>
+        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Smallville Bankrupt</h2>
         <p style={{ fontSize: 13, color: C.textSub, lineHeight: 1.7, marginBottom: 22 }}>
           The city ran out of funds in <strong>{month}</strong>. Bus subsidies outpaced Uber tax revenue.
         </p>
@@ -635,6 +578,49 @@ function GameOverScreen({ month, onRestart, onContinue }) {
 // ============================================================
 //  SCREENS
 // ============================================================
+
+function StructuralBanner({ items }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+      {items.map((item, i) => (
+        <div key={i} style={{ fontSize: 9, fontWeight: 700, color: C.textMuted, background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 4, padding: "3px 7px", letterSpacing: 0.3 }}>
+          {item}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function computeWarnings(uberTax, busSubsidy, live, budgetFraction) {
+  const w = [];
+  if (uberTax > 60) w.push("Tax above 60% — mobility drops sharply (cliff zone).");
+  if (uberTax > 30 && uberTax <= 60) w.push("Tax in steep zone (30–60%) — women and poor riders absorb more of the hit.");
+  if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget is draining.");
+  if (busSubsidy > 60 && live.mobilityScore > 60) w.push("High subsidy with high mobility — buses may be constraining, not helping.");
+  return w;
+}
+
+function generateChangeSummary(stats, prevStats, uberTax, busSubsidy) {
+  const lines = [];
+  if (uberTax > 0) {
+    if (uberTax > 60) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% raised revenue but pushed mobility into cliff-zone drop.` });
+    else if (uberTax > 30) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue with a moderate mobility cost.` });
+    else lines.push({ icon: "💰", text: `Low Uber tax (${uberTax}%) had minimal effect on mobility and moderate revenue.` });
+  }
+  if (busSubsidy > 0) {
+    if (stats.busIsConstraining) lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) hit the ridership ceiling — spending budget without adding mobility.` });
+    else lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) supported mobility and reduced congestion.` });
+  }
+  if (stats.monthlyDelta < 0) lines.push({ icon: "📉", text: `Budget fell by $${Math.abs(stats.monthlyDelta).toFixed(1)}M — costs outpaced Uber revenue.` });
+  else lines.push({ icon: "📈", text: `Budget grew by $${stats.monthlyDelta.toFixed(1)}M — revenue covered costs.` });
+  if (prevStats) {
+    const happyDelta = Math.round(stats.happinessScore) - Math.round(prevStats.happinessScore);
+    if (Math.abs(happyDelta) >= 4) lines.push({ icon: happyDelta > 0 ? "😊" : "😟", text: `Happiness ${happyDelta > 0 ? "rose" : "fell"} ${Math.abs(happyDelta)} pts vs last month.` });
+  }
+  return lines;
+}
+
 function IntroScreen({ onStart }) {
   return (
     <CityIntroFlow
@@ -645,14 +631,13 @@ function IntroScreen({ onStart }) {
   );
 }
 
-function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, onBusChange, onCommit, budgetRemaining, history }) {
+function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, onBusChange, onCommit, budgetRemaining }) {
   const [timeLeft, setTimeLeft] = useState(TIMER.monthDuration);
   const [locked, setLocked] = useState(false);
   const [ending, setEnding] = useState(false);
   const uberRef = useRef(uberTax);
   const busRef = useRef(busSubsidy);
   const lockedRef = useRef(false);
-  const projection = calculateProjection(history, budgetRemaining, roundIndex);
   useEffect(() => { uberRef.current = uberTax; }, [uberTax]);
   useEffect(() => { busRef.current = busSubsidy; }, [busSubsidy]);
 
@@ -672,7 +657,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
       setTimeLeft(prev => { if (prev <= 1) { clearInterval(iv); commitMonth(true); return 0; } return prev - 1; });
     }, 1000);
     return () => clearInterval(iv);
-  }, [roundIndex, commitMonth]);
+  }, [roundIndex]);
 
   const live = simulate(uberTax, busSubsidy, budgetRemaining, roundIndex);
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
@@ -681,7 +666,8 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
   const mobilityB4Bus = SIMULATION.baseline.mobilityScore - uberLoss;
 
   const budgetColor = gc(budgetFraction, "budget");
-  
+  const warnings = computeWarnings(uberTax, busSubsidy, live, budgetFraction);
+
   return (
     <div style={{
       height: "100vh", background: C.pageBg, fontFamily: "Georgia,serif",
@@ -689,7 +675,6 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
       outline: warn ? `3px solid ${C.red}` : "3px solid transparent",
       outlineOffset: "-3px", transition: "outline 0.3s",
     }}>
-      <PerformanceHeader projection={projection} />
       {ending && <MonthEndingOverlay month={month} />}
 
       {/* ── TOP BAR ─────────────────────────────────────────── */}
@@ -750,7 +735,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
               <span style={{ fontSize: 18, flexShrink: 0 }}>🚗</span>
               <div>
                 <div style={{ fontSize: 10, fontWeight: 800, color: C.red, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Uber Tax Locked until March</div>
-                <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>AVs just flooded the city — watch the road fill up. Your Uber tax slider unlocks in March.</div>
+                <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>AVs just flooded the city — watch the road fill up. Your Uber tax lever unlocks in March.</div>
               </div>
             </div>
           )}
@@ -762,6 +747,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
               ? { text: "🔒 unlocks March", bg: C.redBg, color: C.red, border: C.redBorder }
               : { text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
             badge={!uberLocked && <TaxZoneWarning tax={uberTax} />}
+            hint="Raises revenue · lowers congestion · high levels suppress mobility"
           />
           <SliderInput
             label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
@@ -771,6 +757,16 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             hint="Boosts mobility when city is under-served · less effective above mobility 65"
           />
           <BudgetDeltaPreview delta={live.monthlyDelta} />
+
+          {warnings.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              {warnings.map((w, i) => (
+                <div key={i} style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "5px 10px", fontSize: 10, color: C.amber, fontWeight: 700, marginBottom: 4 }}>
+                  ⚠️ {w}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* CENTER: City road visualization */}
@@ -805,6 +801,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             type="happiness"
             tooltip={ADVISOR.tooltips.happiness}
             breakdown={live.happinessBreakdown}
+            target="Goal: 65+"
           />
           <GaugeBar
             label="Mobility"
@@ -812,10 +809,11 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             type="mobility"
             tooltip={ADVISOR.tooltips.mobility}
             breakdown={live.mobilityBreakdown}
+            target="Target: 55–75"
           />
           <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
           <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} target="Safe zone: above $2.4M" />
-           <div style={{ fontSize: 10, color: C.textFaint, marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: C.textFaint, marginTop: 4 }}>
             +${live.uberRevenue.toFixed(2)} tax &nbsp;−${live.busCost.toFixed(2)} bus
           </div>
         </div>
@@ -825,18 +823,17 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
 }
 
 function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMessage, onNext, history, timedOut, budgetRemaining }) {
+  const prevStats = history.length >= 2 ? history[history.length - 2] : null;
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
   const chartData = history.map((m, i) => ({
     name: MONTHS[i].slice(0, 3),
     delta: m.monthlyDelta,
     happiness: Math.round(m.happinessScore),
   }));
-  const projection = calculateProjection(history, budgetRemaining, roundIndex);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif" }}>
-      <PerformanceHeader projection={projection} />
-      <div style={{ maxWidth: 580, margin: "0 auto", padding: "16px" }}>
+    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", padding: "16px" }}>
+      <div style={{ maxWidth: 580, margin: "0 auto" }}>
 
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
@@ -873,6 +870,8 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
             type="happiness"
             tooltip={ADVISOR.tooltips.happiness}
             breakdown={stats.happinessBreakdown}
+            target="Goal: 65+"
+            prev={prevStats?.happinessScore ?? null}
           />
           <GaugeBar
             label="Mobility"
@@ -880,12 +879,16 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
             type="mobility"
             tooltip={ADVISOR.tooltips.mobility}
             breakdown={stats.mobilityBreakdown}
+            target="Target: 55–75"
+            prev={prevStats?.mobilityScore ?? null}
           />
           <GaugeBar
             label="Congestion"
             value={stats.congestionLevel}
             type="congestion"
             tooltip={ADVISOR.tooltips.congestion}
+            target="Goal: under 40"
+            prev={prevStats?.congestionLevel ?? null}
           />
           <GaugeBar
             label="Budget Remaining"
@@ -893,6 +896,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
             type="budget"
             tooltip={ADVISOR.tooltips.budget}
             extra={`/ $${BUDGET_CONFIG.annualBudget}M`}
+            target="Safe zone: above $2.4M"
           />
         </div>
 
@@ -903,6 +907,23 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
         )}
 
         <div style={{ marginBottom: 14 }}><AdvisorBox message={advisorMessage} /></div>
+
+        {/* Why this changed */}
+        {(() => {
+          const lines = generateChangeSummary(stats, prevStats, uberTax, busSubsidy);
+          if (lines.length === 0) return null;
+          return (
+            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Why this changed</div>
+              {lines.map((line, i) => (
+                <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginBottom: 5 }}>
+                  <span style={{ fontSize: 13, flexShrink: 0, lineHeight: 1.3 }}>{line.icon}</span>
+                  <span style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>{line.text}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         {/* Budget chart */}
         {history.length > 1 && (
@@ -942,7 +963,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
   );
 }
 
-function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }) {
+function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
   const avgH = history.reduce((s, m) => s + m.happinessScore, 0) / history.length;
   const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / history.length;
   const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / history.length;
@@ -1058,16 +1079,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
           <div style={{ fontSize: 10, color: C.textFaint, marginTop: 12 }}>{DEBRIEF.source}</div>
         </div>
 
-        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>↺ Play Again</button>
-        {grade.min >= 65 ? (
-          <button onClick={onAdvance} style={{ width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
-            Next City: Riverdale →
-          </button>
-        ) : (
-          <div style={{ background: C.redBg, color: C.red, padding: "12px", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight: 700 }}>
-            🔒 Achieve Grade B or higher to unlock Riverdale
-          </div>
-        )}
+        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>↺ Play Again</button>
       </div>
     </div>
   );
@@ -1076,7 +1088,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
 // ============================================================
 //  MAIN GAME CONTROLLER
 // ============================================================
-export default function TransportTycoon({ onAdvance }) {
+export default function TransportTycoon() {
   const [screen, setScreen] = useState("intro");
   const [roundIndex, setRound] = useState(0);
   const [uberTax, setUber] = useState(0);
@@ -1134,12 +1146,10 @@ export default function TransportTycoon({ onAdvance }) {
   if (screen === "gameOver") return <GameOverScreen month={gameOverMonth} onRestart={handleRestart} onContinue={handleContinue} />;
   if (screen === "politicalLoss") return <PoliticalLossScreen month={polMonth} onRestart={handleRestart} onContinue={handleContinue} />;
   if (screen === "planning") return (
-    <div style={{ background: C.pageBg, minHeight: "100vh" }}>
-      <PlanningScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
-        uberTax={uberTax} busSubsidy={busSubsidy}
-        onUberChange={setUber} onBusChange={setBus}
-        onCommit={handleCommit} budgetRemaining={budget} history={history} />
-    </div>
+    <PlanningScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
+      uberTax={uberTax} busSubsidy={busSubsidy}
+      onUberChange={setUber} onBusChange={setBus}
+      onCommit={handleCommit} budgetRemaining={budget} />
   );
   if (screen === "result") return (
     <ResultScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
@@ -1147,5 +1157,5 @@ export default function TransportTycoon({ onAdvance }) {
       advisorMessage={advisorMsg} onNext={handleNext}
       history={history} timedOut={timedOut} budgetRemaining={budget} />
   );
-  if (screen === "yearEnd") return <YearEndScreen history={history} finalBudget={budget} onRestart={handleRestart} scoreless={scoreless} onAdvance={onAdvance} />;
+  if (screen === "yearEnd") return <YearEndScreen history={history} finalBudget={budget} onRestart={handleRestart} scoreless={scoreless} />;
 }
