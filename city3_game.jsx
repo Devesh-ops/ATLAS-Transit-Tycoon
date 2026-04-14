@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import CityIntroFlow from "./CityIntro.jsx";
-import CityRoadScene from "./CityRoadScene.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
 
 // ============================================================
@@ -16,6 +15,8 @@ const C = {
   red: "#991B1B", redBg: "#FFF1F1", redBorder: "#FECACA",
   purple: "#6D28D9", purpleBg: "#F5F3FF", purpleBorder: "#C4B5FD",
   cyan: "#0E7490", cyanBg: "#ECFEFF", cyanBorder: "#A5F3FC",
+  rose: "#9F1239", roseBg: "#FFF1F3", roseBorder: "#FECDD3",
+  teal: "#0F766E", tealBg: "#F0FDFA", tealBorder: "#99F6E4",
   uberColor: "#B91C1C", busColor: "#1B4FD8", acColor: "#0E7490",
   track: "#E2DDD6", overlay: "rgba(26,23,20,0.78)",
 };
@@ -29,11 +30,11 @@ const CITY_META = {
   population: 200000,
   richFraction: 0.40,
   poorFraction: 0.60,
-  intro: `Gilded Hollow has 200,000 people — 60% low-income, 40% wealthy. Uber is taxed, not subsidised: the tax earns revenue AND cuts congestion, but reduces mobility — especially for poor citizens who have fewer alternatives. Bus subsidies and AC investment cost money. Seasons will test you: summer heat and winter cold empty the buses unless they're comfortable. Keep everyone moving, close the equity gap, and don't go broke.`,
+  intro: `Gilded Hollow has 200,000 people — 60% low-income, 40% wealthy. In this city, Uber is primarily a luxury for the wealthy. Taxing it provides the progressive revenue we need to build a premium, climate-controlled bus system for everyone. Your goal is to use this redistributed wealth to bridge the equity gap and keep the city moving. Seasons will test you: summer heat and winter cold empty the buses unless they're comfortable. Keep everyone moving, close the equity gap, and don't go broke.`,
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const TIMER = { monthDuration: 25, warningAt: 6, endingDuration: 1200 };
+const TIMER = { monthDuration: 40, warningAt: 8, endingDuration: 1200 };
 
 const SEASONS = {
   tempIndex: [-1.0, -0.7, -0.3, 0.0, 0.4, 0.8, 1.0, 0.8, 0.4, 0.0, -0.4, -0.8],
@@ -101,6 +102,7 @@ const SIMULATION = {
 const BUDGET_CONFIG = {
   annualBudget: 30.0,
   warningFraction: 0.20,
+  budgetBonusWeight: 0.10,
 };
 
 const SCORING = {
@@ -136,7 +138,7 @@ const ADVISOR = {
     highHappiness: ["Great month! Both groups moving well — and buses were comfortable.", "Gilded Hollow is working. Mobility up, equity gap manageable.", "Strong policy. Tax revenue funding real access."],
     equityGap: ["The mobility gap is narrow, but we need more revenue from the wealthy to fund the bus. Taxing Uber hits them hardest and provides for the rest.", "Wealthy riders are highly sensitive to this tax. Use it to level the playing field and fund bus subsidies.", "This is the progressive model: pricing policies hit the rich hardest, providing a budget for the common good."],
     heatNeedingAC: ["Hot buses drive wealthy riders to Uber — tax that shift! Use the revenue to keep buses cool for the poor.", "Heat + expensive Uber for the rich is a revenue opportunity to fund bus AC.", "Wealthy riders avoid hot buses and pay the Uber tax — which pays for the AC for everyone else."],
-    coldNeedingAC: ["Winter cold drives wealthy riders to Uber. Tax them to fund the bus heating that the poor rely on.", "High Uber taxes on the rich are your most efficient funding lever in winter.", "Wealthy riders avoiding cold buses provides the revenue needed to heat the fleet for the poor."],
+    coldNeedingAC: ["Winter cold drives wealthy riders to Uber. Tax them to fund the bus heating that the poor rely on.", "High Uber taxes on the rich are your most efficient funding slider in winter.", "Wealthy riders avoiding cold buses provides the revenue needed to heat the fleet for the poor."],
     highCongestion: ["Congestion still high despite the Uber tax. Make sure the tax is high enough to shift riders to buses.", "Roads packed. A higher tax shifts more people to shared transport — but watch poor mobility."],
     lowMobility: ["Mobility dropped. The Uber tax may be too high — or bus + AC investment too low to compensate.", "City isn't moving much. Consider easing the tax and boosting bus subsidies."],
     budgetWarning: ["Budget thin. Uber tax is your income — make sure it's earning enough to cover bus and AC costs.", "Less than 20% remaining. Check whether tax revenue is keeping pace with your spending."],
@@ -311,6 +313,20 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const hBudgTotal = -budgetStress * (CITY_META.poorFraction * 30 * hw.poor.budgetStressWeight + CITY_META.richFraction * 25 * hw.rich.budgetStressWeight);
   const hACComfortTotal = CITY_META.poorFraction * poorACBonus * hw.poor.acComfortWeight + CITY_META.richFraction * richACBonus * hw.rich.acComfortWeight;
 
+  const uberEffect = -uberTax * SIMULATION.uber.congestionReductionPerPercent;
+  const busCongestionEffect = -busSubsidy * bus.congestionOffsetPerPercent;
+  const weatherEffect = weatherUberBoost * 0.2;
+
+  const poorBusEffectOverall = CITY_META.poorFraction * poorBusEffect;
+  const richBusEffectOverall = CITY_META.richFraction * richBusEffect;
+  const totalBusEffect = poorBusEffectOverall + richBusEffectOverall;
+
+  const poorUberLossOverall = CITY_META.poorFraction * poorUberLoss;
+  const richUberLossOverall = CITY_META.richFraction * richUberLoss;
+  const totalUberLoss = poorUberLossOverall + richUberLossOverall;
+
+  const totalWeatherEffectMobility = CITY_META.poorFraction * (weatherUberBoost * 0.3 - busTempPenalty) + CITY_META.richFraction * 0;
+
   return {
     poorMobility, richMobility, cityMobility,
     congestionLevel, equityScore,
@@ -318,11 +334,24 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
     monthlyDelta, uberRevenue, busCost, acCost,
     tempDiscomfort, tempIndex: ti, collapseActive,
     poorMobilityB4Bus,
+    mobilityBreakdown: [
+      { label: "Base", value: CITY_META.poorFraction * baseline.poorMobility + CITY_META.richFraction * baseline.richMobility },
+      { label: "Uber Tax", value: -totalUberLoss, color: C.uberColor },
+      { label: "Bus Mode Shift", value: totalBusEffect, color: C.busColor },
+      { label: "Weather", value: totalWeatherEffectMobility, color: C.blue }
+    ],
+    congestionBreakdown: [
+      { label: "Base", value: baseline.congestionLevel },
+      { label: "Uber Tax", value: uberEffect, color: C.uberColor },
+      { label: "Bus Mode Shift", value: busCongestionEffect, color: C.busColor },
+      { label: "Weather", value: weatherEffect, color: C.amber }
+    ],
     happinessBreakdown: [
+      { label: "Base", value: CITY_META.poorFraction * baseline.poorHappiness + CITY_META.richFraction * baseline.richHappiness },
       { label: "Mobility", value: hMobTotal, color: C.blue },
       { label: "Comfort", value: hACComfortTotal, color: C.acColor },
       { label: "Congestion", value: hCongTotal, color: C.amber },
-      { label: "Budget", value: hBudgTotal, color: C.red }
+      ...(hBudgTotal < 0 ? [{ label: "Budget", value: hBudgTotal, color: C.red }] : [])
     ]
   };
 }
@@ -387,7 +416,7 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "😐", color: C.textMuted, bg: C.insetBg, border: C.border,
       title: "Cautious policy, cautious results",
-      body: `No single disaster — but no bold reinvestment either. Average happiness ${Math.round(avgH)}, equity ${Math.round(avgE)}. With three levers, there's a self-funding sweet spot: ~40% Uber tax funding ~50% bus subsidy + ~50% AC in extreme months.`,
+      body: `No single disaster — but no bold reinvestment either. Average happiness ${Math.round(avgH)}, equity ${Math.round(avgE)}. With three sliders, there's a self-funding sweet spot: ~40% Uber tax funding ~50% bus subsidy + ~50% AC in extreme months.`,
       research: "Optimal transport policy requires calibrated intervention. Moderate everything is not the same as balanced.",
     });
   }
@@ -421,22 +450,77 @@ function getGrade(score) {
   return SCORING.grades.find(g => score >= g.min) || SCORING.grades[SCORING.grades.length - 1];
 }
 
+function calculateProjection(history, currentBudget, roundIndex) {
+  const monthsElapsed = history.length || 0;
+  if (monthsElapsed === 0) return { score: 50, grade: getGrade(50) };
+
+  const avgHappiness = history.reduce((s, h) => s + h.cityHappiness, 0) / monthsElapsed;
+  const avgDelta = (currentBudget - BUDGET_CONFIG.annualBudget) / monthsElapsed;
+  const projectedBudgetFrac = Math.max(0, currentBudget + (avgDelta * (12 - monthsElapsed))) / BUDGET_CONFIG.annualBudget;
+  const projectedScore = avgHappiness + (projectedBudgetFrac * BUDGET_CONFIG.budgetBonusWeight * 100);
+
+  return {
+    score: projectedScore,
+    grade: getGrade(projectedScore)
+  };
+}
+
+function PerformanceHeader({ projection, goalGrade = "B" }) {
+  return (
+    <div style={{
+      background: C.cardBg,
+      borderBottom: `1px solid ${C.border}`,
+      padding: "16px 24px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      position: "sticky",
+      top: 0,
+      zIndex: 100
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
+        <div style={{
+          background: projection.grade.color,
+          color: "white",
+          padding: "4px 10px",
+          borderRadius: 6,
+          fontSize: 18,
+          fontWeight: 900
+        }}>
+          {projection.grade.grade}
+        </div>
+        <div style={{ fontSize: 13, color: C.textSub, fontWeight: 600 }}>{projection.grade.label}</div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Goal</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: C.textSub }}>{goalGrade} or above to Advance</div>
+      </div>
+    </div>
+  );
+}
+
 function gc(value, type) {
-  const t = SIMULATION.thresholds[type];
-  if (!t) return C.textMuted;
+  const t = SIMULATION.thresholds && SIMULATION.thresholds[type]
+    ? SIMULATION.thresholds[type]
+    : { good: 65, warning: 40, safe: 0.1 };
+
+  let ratio = 0;
   if (type === "congestion") {
-    if (value <= t.good) return C.green;
-    if (value <= t.warning) return C.amber;
-    return C.red;
+    if (value <= t.good) ratio = 1;
+    else if (value >= t.warning + 25) ratio = 0;
+    else ratio = Math.max(0, 1 - (value - t.good) / (t.warning + 25 - t.good));
+  } else if (type === "budget") {
+    if (value >= t.safe) ratio = 1;
+    else if (value <= t.warning / 2) ratio = 0;
+    else ratio = Math.max(0, (value - t.warning / 2) / (t.safe - t.warning / 2));
+  } else {
+    if (value >= t.good) ratio = 1;
+    else if (value <= t.warning - 15) ratio = 0;
+    else ratio = Math.max(0, (value - (t.warning - 15)) / (t.good - (t.warning - 15)));
   }
-  if (type === "budget") {
-    if (value >= t.safe) return C.green;
-    if (value >= t.warning) return C.amber;
-    return C.red;
-  }
-  if (value >= t.good) return C.green;
-  if (value >= t.warning) return C.amber;
-  return C.red;
+  const hue = ratio * 140;
+  return `hsl(${hue}, 86%, 46%)`;
 }
 
 // ============================================================
@@ -670,9 +754,9 @@ function PoliticalLossScreen({ month, onRestart, onContinue }) {
         <div style={{ fontSize: 54, marginBottom: 10 }}>🗳️</div>
         <div style={{ fontSize: 11, letterSpacing: 3, color: C.purple, textTransform: "uppercase", marginBottom: 8, fontWeight: 800 }}>Political Ejection</div>
         <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 10px" }}>You've been voted out</h2>
-        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below 30. Gilded Hollow needs a new Transport Director.</p>
-        <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>Removed in <strong>{month}</strong>. Sustained low happiness signals policy failure — not just a bad month.</p>
-        <div style={{ marginBottom: 22 }}><AdvisorBox message="Three consecutive months of deep unhappiness is a political signal. Check whether the Uber tax was too high without bus and AC compensation." /></div>
+        <p style={{ fontSize: 14, color: C.textSub, lineHeight: 1.7, marginBottom: 10 }}>Citizens lost confidence after <strong>3 consecutive months</strong> of happiness below {SIMULATION.politicalFloor}. {CITY_META.name} needs a new Transport Director.</p>
+        <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, marginBottom: 20 }}>Removed in <strong>{month}</strong>. Sustained low happiness signalling policy failure — not just a bad month.</p>
+        <div style={{ marginBottom: 22 }}><AdvisorBox message={`Three consecutive months of deep unhappiness is a political signal, not just a number. Check whether the Uber tax was too high without bus compensation.`} /></div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onRestart} style={{ flex: 1, background: C.purple, color: "#fff", border: "none", borderRadius: 9, padding: "13px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>↺ Try Again</button>
           <button onClick={onContinue} style={{ flex: 1, background: C.cardBg, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 9, padding: "13px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Continue (no score)</button>
@@ -688,11 +772,11 @@ function GameOverScreen({ month, onRestart, onContinue }) {
       <div style={{ maxWidth: 420, textAlign: "center" }}>
         <div style={{ fontSize: 52, marginBottom: 10 }}>💸</div>
         <div style={{ fontSize: 10, letterSpacing: 4, color: C.red, textTransform: "uppercase", marginBottom: 8 }}>Budget Depleted</div>
-        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>Gilded Hollow Bankrupt</h2>
+        <h2 style={{ fontSize: 30, fontWeight: 800, color: C.text, margin: "0 0 8px" }}>{CITY_META.name} Bankrupt</h2>
         <p style={{ fontSize: 13, color: C.textSub, lineHeight: 1.7, marginBottom: 22 }}>
           The city ran out of funds in <strong>{month}</strong>. Bus and AC costs outpaced Uber tax revenue.
         </p>
-        <div style={{ marginBottom: 22 }}><AdvisorBox message="Three cost streams need to be balanced against one income stream. Raise the Uber tax — it's your only source of revenue." /></div>
+        <div style={{ marginBottom: 22 }}><AdvisorBox message="Three cost streams need to balance against one income stream. Raise the Uber tax — it's your only source of revenue." /></div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={onRestart} style={{ flex: 1, background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "11px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>↺ Start Over</button>
           <button onClick={onContinue} style={{ flex: 1, background: C.cardBg, color: C.textMuted, border: `1px solid ${C.border}`, borderRadius: 8, padding: "11px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Continue (no score)</button>
@@ -763,7 +847,7 @@ function IntroScreen({ onStart }) {
   );
 }
 
-function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUberChange, onBusChange, onACChange, onCommit, budgetRemaining }) {
+function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUberChange, onBusChange, onACChange, onCommit, budgetRemaining, history }) {
   const [timeLeft, setTimeLeft] = useState(TIMER.monthDuration);
   const [locked, setLocked] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -771,6 +855,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
   const busRef = useRef(busSubsidy);
   const acRef = useRef(acLevel);
   const lockedRef = useRef(false);
+  const projection = calculateProjection(history, budgetRemaining, roundIndex);
   useEffect(() => { uberRef.current = uberTax; }, [uberTax]);
   useEffect(() => { busRef.current = busSubsidy; }, [busSubsidy]);
   useEffect(() => { acRef.current = acLevel; }, [acLevel]);
@@ -795,85 +880,69 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
   const warn = timeLeft <= TIMER.warningAt && timeLeft > 0;
 
   return (
-    <div style={{
-      height: "100vh", background: C.pageBg, fontFamily: "Georgia,serif",
-      display: "flex", flexDirection: "column", overflow: "hidden",
-      outline: warn ? `3px solid ${C.red}` : "3px solid transparent",
-      outlineOffset: "-3px", transition: "outline 0.3s",
-    }}>
+    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", outline: warn ? `3px solid ${C.red}` : "3px solid transparent", outlineOffset: "-3px", transition: "outline 0.3s" }}>
+      <PerformanceHeader projection={projection} />
       {ending && <MonthEndingOverlay month={month} />}
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "14px" }}>
 
-      {/* ── TOP BAR ─────────────────────────────────────────── */}
-      <div style={{
-        flexShrink: 0, display: "flex", alignItems: "center", gap: 12,
-        padding: "8px 16px", background: C.cardBg,
-        borderBottom: `1px solid ${C.border}`,
-        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-      }}>
-        <div style={{ minWidth: 110 }}>
-          <div style={{ fontSize: 9, letterSpacing: 2, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 3 · {CITY_META.name}</div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{month}</div>
-        </div>
-        <SeasonBadge roundIndex={roundIndex} />
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 9, color: C.textFaint }}>
-            <span>Jan</span>
-            <span style={{ color: C.blue, fontWeight: 700 }}>{roundIndex + 1}/12</span>
-            <span>Dec</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 9, letterSpacing: 3, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 3 · {CITY_META.name}</div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: "2px 0 0" }}>{month}</h2>
           </div>
-          <div style={{ height: 5, background: C.track, borderRadius: 3, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${((roundIndex + 1) / 12) * 100}%`, background: C.blue, borderRadius: 3, transition: "width 0.4s" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <SeasonBadge roundIndex={roundIndex} />
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 9, color: C.textFaint }}>Month</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: C.textSub }}>{roundIndex + 1}/12</div>
+            </div>
+            <CountdownRing timeLeft={timeLeft} total={TIMER.monthDuration} />
           </div>
         </div>
+
+        <div style={{ height: 3, background: C.track, borderRadius: 2, marginBottom: 10, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${(roundIndex / 12) * 100}%`, background: C.blue, transition: "width 0.4s" }} />
+        </div>
+
+        {/* AC collapse warning banner */}
+        {live.collapseActive && (
+          <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
+            <span style={{ fontSize: 11, color: C.red, fontWeight: 700 }}>🔴 COLLAPSE ACTIVE — Extreme {live.tempIndex > 0 ? "heat" : "cold"} + AC below 15% is emptying buses. Poor riders are stranded.</span>
+          </div>
+        )}
+        {!live.collapseActive && live.weatherAlert && (
+          <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 10, display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 16 }}>{SEASONS.seasonIcon[roundIndex]}</span>
+            <span style={{ fontSize: 11, color: C.amber, fontWeight: 700 }}>⚠️ Extreme {live.tempIndex > 0 ? "heat" : "cold"} — buses uncomfortable. Raising AC/heating levels will keep riders on buses.</span>
+          </div>
+        )}
+
+        <StructuralBanner items={["60% poor · 40% rich — each group responds to policy differently", "Income elasticity: poor riders are ~2.4× more sensitive to Uber tax"]} />
+
         {(() => {
-          const budgetColor = gc(budgetFraction, "budget");
+          const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
+          const warnings = computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction);
+          if (warnings.length === 0) return null;
           return (
-            <div style={{
-              background: budgetColor === C.green ? C.greenBg : budgetColor === C.amber ? C.amberBg : C.redBg,
-              border: `1px solid ${budgetColor === C.green ? C.greenBorder : budgetColor === C.amber ? C.amberBorder : C.redBorder}`,
-              borderRadius: 8, padding: "5px 12px", textAlign: "center", minWidth: 88,
-            }}>
-              <div style={{ fontSize: 9, color: C.textFaint, textTransform: "uppercase", letterSpacing: 1 }}>Budget</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: budgetColor }}>${budgetRemaining.toFixed(1)}M</div>
+            <div style={{ marginBottom: 8 }}>
+              {warnings.map((w, i) => (
+                <div key={i} style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "5px 10px", fontSize: 10, color: C.amber, fontWeight: 700, marginBottom: 4 }}>
+                  ⚠️ {w}
+                </div>
+              ))}
             </div>
           );
         })()}
-        <CountdownRing timeLeft={timeLeft} total={TIMER.monthDuration} />
-        <button onClick={() => commitMonth(false)} disabled={locked} style={{
-          background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff",
-          border: "none", borderRadius: 8, padding: "10px 18px",
-          fontSize: 14, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer",
-          transition: "background 0.2s", whiteSpace: "nowrap",
-        }}>
-          {locked ? "⏳ Locking..." : "✓ End Turn"}
-        </button>
-      </div>
 
-      {/* ── 3-COLUMN BODY ───────────────────────────────────── */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+        <div style={{ marginBottom: 10 }}><AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} /></div>
 
-        {/* LEFT: Policy sliders */}
-        <div style={{
-          width: 272, flexShrink: 0, overflowY: "auto",
-          padding: "14px 16px", borderRight: `1px solid ${C.border}`,
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
-            Set Policy {locked && <span style={{ color: C.red }}>🔒</span>}
+        {/* Policy card */}
+        <div style={{ background: C.cardBg, border: `1px solid ${warn ? C.red : C.border}`, borderRadius: 12, padding: "14px 14px 6px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", transition: "border 0.3s" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Set Policy</span>
+            {locked && <span style={{ fontSize: 10, color: C.red, fontWeight: 800 }}>🔒 LOCKED</span>}
           </div>
-
-          {live.collapseActive && (
-            <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 8, padding: "8px 10px", marginBottom: 10, display: "flex", gap: 7, alignItems: "flex-start" }}>
-              <span style={{ fontSize: 15 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-              <span style={{ fontSize: 10, color: C.red, fontWeight: 700, lineHeight: 1.4 }}>🔴 COLLAPSE — Extreme {live.tempIndex > 0 ? "heat" : "cold"} + AC below 15%. Poor riders stranded.</span>
-            </div>
-          )}
-          {!live.collapseActive && live.weatherAlert && (
-            <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 10px", marginBottom: 10, display: "flex", gap: 7, alignItems: "flex-start" }}>
-              <span style={{ fontSize: 15 }}>{SEASONS.seasonIcon[roundIndex]}</span>
-              <span style={{ fontSize: 10, color: C.amber, fontWeight: 700, lineHeight: 1.4 }}>⚠️ Extreme {live.tempIndex > 0 ? "heat" : "cold"} — raise AC to keep buses attractive.</span>
-            </div>
-          )}
-
           <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor} tooltip={ADVISOR.tooltips.uberTax} locked={locked} tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
             hint="Raises revenue · hits poor riders 2.4× harder than rich · above 60% causes sharp mobility loss" />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor} tooltip={ADVISOR.tooltips.busSubsidy} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
@@ -884,42 +953,22 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
           <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
         </div>
 
-        {/* CENTER: City road visualization */}
-        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-          <CityRoadScene
-            cityLevel={3}
-            uberTax={uberTax}
-            busSubsidy={busSubsidy}
-            congestion={live.congestionLevel}
-            seasonIcon={SEASONS.seasonIcon[roundIndex]}
-          />
-          <div style={{
-            position: "absolute", bottom: 0, left: 0, right: 0,
-            padding: "10px 14px",
-            background: "rgba(255,255,255,0.93)",
-            backdropFilter: "blur(4px)",
-            borderTop: `1px solid ${C.border}`,
-          }}>
-            <AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} />
-          </div>
-        </div>
-
-        {/* RIGHT: Metrics */}
-        <div style={{
-          width: 272, flexShrink: 0, overflowY: "auto",
-          padding: "14px 16px", borderLeft: `1px solid ${C.border}`,
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Live Preview</div>
+        {/* Live preview */}
+        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Live Preview</div>
           <GaugeBar label="City Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} target="Goal: 65+" />
           <SplitGauge label="Happiness Split" poorVal={live.poorHappiness} richVal={live.richHappiness} targetVal={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} />
+          <GaugeBar label="Overall Mobility" value={live.cityMobility} type="mobility" tooltip={ADVISOR.tooltips.mobility} breakdown={live.mobilityBreakdown} target="Goal: 65+" />
           <SplitGauge label="Mobility Split" poorVal={live.poorMobility} richVal={live.richMobility} targetVal={live.cityMobility} type="mobility" tooltip={ADVISOR.tooltips.mobility} />
           <GaugeBar label="Equity" value={live.equityScore} type="equity" tooltip={ADVISOR.tooltips.equity} target="Goal: 60+" />
-          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
+          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} breakdown={live.congestionBreakdown} target="Goal: under 40" />
           <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $6M" />
-          <div style={{ fontSize: 10, color: C.textFaint, marginTop: 4 }}>
-            +${live.uberRevenue.toFixed(2)} tax &nbsp;−${live.busCost.toFixed(2)} bus &nbsp;−${live.acCost.toFixed(2)} AC
-          </div>
         </div>
+
+        <button onClick={() => commitMonth(false)} disabled={locked}
+          style={{ width: "100%", background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "13px", fontSize: 15, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer", transition: "background 0.2s" }}>
+          {locked ? "⏳ Locking in..." : `✓ End Turn — Lock in ${month}'s Policy`}
+        </button>
       </div>
     </div>
   );
@@ -933,10 +982,12 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
   const isLast = roundIndex === 11;
   const pos = monthlyDelta >= 0;
+  const projection = calculateProjection(history, budgetRemaining, roundIndex);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", padding: "14px" }}>
-      <div style={{ maxWidth: 600, margin: "0 auto" }}>
+    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif" }}>
+      <PerformanceHeader projection={projection} />
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div>
             <div style={{ fontSize: 9, letterSpacing: 3, color: C.green, textTransform: "uppercase", fontWeight: 800 }}>Month Complete</div>
@@ -1035,7 +1086,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
   );
 }
 
-function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
+function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }) {
   const avgH = history.reduce((s, m) => s + m.cityHappiness, 0) / history.length;
   const avgE = history.reduce((s, m) => s + m.equityScore, 0) / history.length;
   const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / history.length;
@@ -1195,7 +1246,16 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
           <div style={{ fontSize: 9, color: C.textFaint, marginTop: 10 }}>{DEBRIEF.source}</div>
         </div>
 
-        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>↺ Play Again</button>
+        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>↺ Play Again</button>
+        {grade.min >= 65 ? (
+          <button onClick={onAdvance} style={{ width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+            Next City: Crestwood →
+          </button>
+        ) : (
+          <div style={{ background: C.redBg, color: C.red, padding: "12px", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight: 700 }}>
+            🔒 Achieve Grade B or higher to unlock Crestwood
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1204,7 +1264,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
 // ============================================================
 //  MAIN GAME CONTROLLER
 // ============================================================
-export default function GildedHollowTycoon() {
+export default function GildedHollowTycoon({ onAdvance }) {
   const [screen, setScreen] = useState("intro");
   const [roundIndex, setRound] = useState(0);
   const [uberTax, setUber] = useState(0);
@@ -1266,10 +1326,12 @@ export default function GildedHollowTycoon() {
   if (screen === "gameOver") return <GameOverScreen month={gameOverMonth} onRestart={handleRestart} onContinue={handleContinue} />;
   if (screen === "politicalLoss") return <PoliticalLossScreen month={polMonth} onRestart={handleRestart} onContinue={handleContinue} />;
   if (screen === "planning") return (
-    <PlanningScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
-      uberTax={uberTax} busSubsidy={busSubsidy} acLevel={acLevel}
-      onUberChange={setUber} onBusChange={setBus} onACChange={setAC}
-      onCommit={handleCommit} budgetRemaining={budget} />
+    <div style={{ background: C.pageBg, minHeight: "100vh" }}>
+      <PlanningScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
+        uberTax={uberTax} busSubsidy={busSubsidy} acLevel={acLevel}
+        onUberChange={setUber} onBusChange={setBus} onACChange={setAC}
+        onCommit={handleCommit} budgetRemaining={budget} history={history} />
+    </div>
   );
   if (screen === "result") return (
     <ResultScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
@@ -1277,5 +1339,5 @@ export default function GildedHollowTycoon() {
       advisorMessage={advisorMsg} onNext={handleNext}
       history={history} timedOut={timedOut} budgetRemaining={budget} />
   );
-  if (screen === "yearEnd") return <YearEndScreen history={history} finalBudget={budget} onRestart={handleRestart} scoreless={scoreless} />;
+  if (screen === "yearEnd") return <YearEndScreen history={history} finalBudget={budget} onRestart={handleRestart} scoreless={scoreless} onAdvance={onAdvance} />;
 }
