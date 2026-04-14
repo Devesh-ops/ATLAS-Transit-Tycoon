@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import CityIntroFlow from "./CityIntro.jsx";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import CityRoadScene from "./CityRoadScene.jsx";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
 
 // ============================================================
 //  DESIGN TOKENS
@@ -88,7 +89,7 @@ const SCORING = {
 
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Hi, I'm Maya. Autonomous vehicles just arrived in Smallville — Uber is cheap, everyone's using it, and congestion is climbing. For January and February you can't tax Uber yet — just watch what happens to congestion. From March, the Uber tax slider is yours: it raises revenue AND cuts congestion. Use that revenue to fund bus subsidies. 20 seconds per month — or hit End Turn.`,
+  gameIntro: `Hi, I'm Maya. Autonomous vehicles just arrived in Smallville — Uber is cheap, everyone's using it, and congestion is climbing. For January and February you can't tax Uber yet — just watch what happens to congestion. From March, the Uber tax slider is yours: it raises revenue AND cuts congestion. Use that revenue to fund bus subsidies. 40 seconds per month — or hit End Turn.`,
   monthStartHints: [
     "January — autonomous vehicles just arrived. Uber is cheap and roads are packing up. 🚨 Your Uber tax is locked this month — watch the congestion build. Bus subsidies are still available.",
     "February — congestion is still rising unchecked. The Uber tax unlocks next month. Use buses if you want, but the real fix is coming.",
@@ -430,7 +431,7 @@ function PerformanceHeader({ projection, goalGrade = "B" }) {
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Goal</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: C.textSub }}>{goalGrade} or above to Advance</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: C.textSub }}>{goalGrade} or above to Win</div>
       </div>
     </div>
   );
@@ -452,7 +453,7 @@ function InfoTip({ text }) {
   );
 }
 
-function GaugeBar({ label, value, type, tooltip, extra, breakdown }) {
+function GaugeBar({ label, value, type, tooltip, extra, breakdown, target }) {
   const color = gc(value, type);
   const barW = type === "budget" ? value * 100 : Math.round(value);
   const display = type === "budget" ? `$${(value * BUDGET_CONFIG.annualBudget).toFixed(1)}M` : Math.round(value);
@@ -471,6 +472,9 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown }) {
       <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden", marginBottom: breakdown ? 6 : 0 }}>
         <div style={{ height: "100%", width: `${Math.min(100, Math.max(0, barW))}%`, background: color, borderRadius: 3, transition: "width 0.35s ease, background 0.3s" }} />
       </div>
+      {target && (
+         <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2 }}>{target}</div>
+      )}
       {breakdown && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {breakdown.map((item, i) => (
@@ -497,7 +501,7 @@ function BusModeBadge({ mobilityBeforeBus, busSubsidy }) {
   );
 }
 
-function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge }) {
+function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge, hint }) {
   return (
     <div style={{ marginBottom: 20, opacity: locked ? 0.5 : 1, transition: "opacity 0.3s" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
@@ -513,6 +517,9 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
       <input type="range" min={0} max={100} step={5} value={value}
         onChange={e => !locked && onChange(Number(e.target.value))} disabled={locked}
         style={{ width: "100%", accentColor: color, cursor: locked ? "not-allowed" : "pointer", touchAction: "none" }} />
+       {hint && (
+        <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2, lineHeight: 1.4 }}>{hint}</div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: C.textFaint, marginTop: 2 }}>
         <span>0%</span><span>50%</span><span>100%</span>
       </div>
@@ -665,7 +672,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
       setTimeLeft(prev => { if (prev <= 1) { clearInterval(iv); commitMonth(true); return 0; } return prev - 1; });
     }, 1000);
     return () => clearInterval(iv);
-  }, [roundIndex]);
+  }, [roundIndex, commitMonth]);
 
   const live = simulate(uberTax, busSubsidy, budgetRemaining, roundIndex);
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
@@ -673,54 +680,81 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
   const uberLoss = uberMobilityLoss(uberTax);
   const mobilityB4Bus = SIMULATION.baseline.mobilityScore - uberLoss;
 
+  const budgetColor = gc(budgetFraction, "budget");
+  
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", outline: warn ? `3px solid ${C.red}` : "3px solid transparent", outlineOffset: "-3px", transition: "outline 0.3s" }}>
+    <div style={{
+      height: "100vh", background: C.pageBg, fontFamily: "Georgia,serif",
+      display: "flex", flexDirection: "column", overflow: "hidden",
+      outline: warn ? `3px solid ${C.red}` : "3px solid transparent",
+      outlineOffset: "-3px", transition: "outline 0.3s",
+    }}>
       <PerformanceHeader projection={projection} />
       {ending && <MonthEndingOverlay month={month} />}
-      <div style={{ maxWidth: 580, margin: "0 auto", padding: "16px" }}>
 
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 1 · {CITY_META.name}</div>
-            <h2 style={{ fontSize: 26, fontWeight: 800, color: C.text, margin: "3px 0 0" }}>{month}</h2>
+      {/* ── TOP BAR ─────────────────────────────────────────── */}
+      <div style={{
+        flexShrink: 0, display: "flex", alignItems: "center", gap: 14,
+        padding: "8px 16px", background: C.cardBg,
+        borderBottom: `1px solid ${C.border}`,
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+      }}>
+        <div style={{ minWidth: 110 }}>
+          <div style={{ fontSize: 9, letterSpacing: 2, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 1 · {CITY_META.name}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{month}</div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 9, color: C.textFaint }}>
+            <span>Jan</span>
+            <span style={{ color: C.blue, fontWeight: 700 }}>{roundIndex + 1}/12</span>
+            <span>Dec</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 9, color: C.textFaint }}>Month</div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: C.textSub }}>{roundIndex + 1}/12</div>
-            </div>
-            <CountdownRing timeLeft={timeLeft} total={TIMER.monthDuration} />
+          <div style={{ height: 5, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${((roundIndex + 1) / 12) * 100}%`, background: C.blue, borderRadius: 3, transition: "width 0.4s" }} />
           </div>
         </div>
-
-        <div style={{ height: 4, background: C.track, borderRadius: 2, marginBottom: 14, overflow: "hidden" }}>
-          <div style={{ height: "100%", width: `${(roundIndex / 12) * 100}%`, background: C.blue, transition: "width 0.4s" }} />
+        <div style={{
+          background: budgetColor === C.green ? C.greenBg : budgetColor === C.amber ? C.amberBg : C.redBg,
+          border: `1px solid ${budgetColor === C.green ? C.greenBorder : budgetColor === C.amber ? C.amberBorder : C.redBorder}`,
+          borderRadius: 8, padding: "5px 12px", textAlign: "center", minWidth: 88,
+        }}>
+          <div style={{ fontSize: 9, color: C.textFaint, textTransform: "uppercase", letterSpacing: 1 }}>Budget</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: budgetColor }}>${budgetRemaining.toFixed(1)}M</div>
         </div>
+        <CountdownRing timeLeft={timeLeft} total={TIMER.monthDuration} />
+        <button onClick={() => commitMonth(false)} disabled={locked} style={{
+          background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff",
+          border: "none", borderRadius: 8, padding: "10px 18px",
+          fontSize: 14, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer",
+          transition: "background 0.2s", whiteSpace: "nowrap",
+        }}>
+          {locked ? "⏳ Locking..." : "✓ End Turn"}
+        </button>
+      </div>
 
-        <div style={{ marginBottom: 12 }}><AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} /></div>
+      {/* ── 3-COLUMN BODY ───────────────────────────────────── */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* AV Lockout Banner */}
-        {uberLocked && (
-          <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 9, padding: "11px 14px", marginBottom: 10, display: "flex", gap: 10, alignItems: "flex-start" }}>
-            <span style={{ fontSize: 20, flexShrink: 0 }}>🚗</span>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: C.red, textTransform: "uppercase", letterSpacing: 1, marginBottom: 3 }}>
-                Uber / AV Tax Unavailable — Watch Congestion Rise
-              </div>
-              <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.5 }}>
-                Autonomous vehicles just flooded the city. Prices crashed, roads are filling up. You can't intervene yet — your Uber tax slider unlocks in <strong>March</strong>. Observe the effect.
+        {/* LEFT: Policy sliders */}
+        <div style={{
+          width: 272, flexShrink: 0, overflowY: "auto",
+          padding: "14px 16px", borderRight: `1px solid ${C.border}`,
+          display: "flex", flexDirection: "column",
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+            Set Policy {locked && <span style={{ color: C.red }}>🔒</span>}
+          </div>
+
+          {uberLocked && (
+            <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 9, padding: "10px 12px", marginBottom: 12, display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>🚗</span>
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 800, color: C.red, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Uber Tax Locked until March</div>
+                <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>AVs just flooded the city — watch the road fill up. Your Uber tax slider unlocks in March.</div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Policy card */}
-        <div style={{ background: C.cardBg, border: `1px solid ${warn ? C.red : C.border}`, borderRadius: 12, padding: "18px 18px 8px", marginBottom: 10, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", transition: "border 0.3s" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Set Policy</span>
-            {locked && <span style={{ fontSize: 10, color: C.red, fontWeight: 800 }}>🔒 LOCKED</span>}
-          </div>
           <SliderInput
             label="Uber / AV Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
             tooltip={ADVISOR.tooltips.uberTax} locked={locked || uberLocked}
@@ -729,15 +763,41 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
               : { text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
             badge={!uberLocked && <TaxZoneWarning tax={uberTax} />}
           />
-          <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
+          <SliderInput
+            label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
             tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            badge={<BusModeBadge mobilityBeforeBus={mobilityB4Bus} busSubsidy={busSubsidy} />} />
+            badge={<BusModeBadge mobilityBeforeBus={mobilityB4Bus} busSubsidy={busSubsidy} />}
+            hint="Boosts mobility when city is under-served · less effective above mobility 65"
+          />
           <BudgetDeltaPreview delta={live.monthlyDelta} />
         </div>
 
-        {/* Live preview */}
-        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", marginBottom: 12, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+        {/* CENTER: City road visualization */}
+        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+          <CityRoadScene
+            cityLevel={1}
+            uberTax={uberTax}
+            busSubsidy={busSubsidy}
+            congestion={live.congestionLevel}
+          />
+          {/* Advisor strip at bottom of scene */}
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0,
+            padding: "10px 14px",
+            background: "rgba(255,255,255,0.93)",
+            backdropFilter: "blur(4px)",
+            borderTop: `1px solid ${C.border}`,
+          }}>
+            <AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} />
+          </div>
+        </div>
+
+        {/* RIGHT: Metrics */}
+        <div style={{
+          width: 272, flexShrink: 0, overflowY: "auto",
+          padding: "14px 16px", borderLeft: `1px solid ${C.border}`,
+        }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Live Preview</div>
           <GaugeBar
             label="Happiness"
@@ -753,14 +813,12 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             tooltip={ADVISOR.tooltips.mobility}
             breakdown={live.mobilityBreakdown}
           />
-          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} />
-          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} />
+          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} target="Safe zone: above $2.4M" />
+           <div style={{ fontSize: 10, color: C.textFaint, marginTop: 4 }}>
+            +${live.uberRevenue.toFixed(2)} tax &nbsp;−${live.busCost.toFixed(2)} bus
+          </div>
         </div>
-
-        <button onClick={() => commitMonth(false)} disabled={locked}
-          style={{ width: "100%", background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 16, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer", transition: "background 0.2s" }}>
-          {locked ? "⏳ Locking in..." : `✓ End Turn — Lock in ${month}'s Policy`}
-        </button>
       </div>
     </div>
   );
