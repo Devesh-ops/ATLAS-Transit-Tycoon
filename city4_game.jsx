@@ -85,14 +85,10 @@ const SIMULATION = {
   },
 
   bus: {
-    // Flip point: bus subsidies boost mobility below this, constrain above
-    mobilityFlipPoint: 55,
-    // Base gains per % subsidy (below flip)
+    // Linear gains — poor benefit much more from bus subsidies than rich (equity lever)
     poorMenGain: 0.28, poorWomenBaseGain: 0.28,
     richMenGain: 0.10, richWomenBaseGain: 0.10,
-    // Above flip — constraining loss
-    constrainingLoss: 0.07,
-    congestionOffsetPerPercent: 0.17,
+    congestionOffsetPerPercent: 0.10,  // low: buses reduce congestion only slightly
     costRate: 0.0013,
   },
 
@@ -216,19 +212,19 @@ const ADVISOR = {
     lowMobility: ["Mobility dropped. Uber tax may be too high, or AC too low to keep riders on buses.", "City isn't moving enough. With three sliders, the balance matters — check which group is being left behind."],
     budgetWarning: ["Budget running thin. Uber tax is your only income source — it funds both cost sliders.", "Less than 20% budget left. AC costs scale with weather severity; re-check the Uber tax level."],
     revenueGain: ["Budget grew — tax revenue covers both cost streams. This is the self-funding model working.", "Positive budget month. Keep this balance and equity will follow."],
-    balanced: ["Steady policy. City moving, gaps visible but contained, budget stable.", "Three sliders calibrated. Compound this over the year."],
-    noPolicy: ["No sliders engaged. Buses cold, unsubsidised. Women and the poor bear the full cost.", "Laissez-faire month. Both gaps — income and gender — widen without intervention."],
-    busConstraining: ["Bus subsidies are maxed out, but mobility is stalling. Riders are hitting the bus capacity limit — try lowering the subsidy to save budget.", "Max bus subsidies have hit the ridership ceiling. You're spending budget without gaining more mobility. Consider reinvesting into AC instead."],
+    balanced: ["Steady policy. City moving, gaps visible but contained, budget stable.", "Three levers calibrated. Compound this over the year."],
+    noPolicy: ["No levers engaged. Buses cold, unsubsidised. Women and the poor bear the full cost.", "Laissez-faire month. Both gaps — income and gender — widen without intervention."],
+    highBusSubsidy: ["High bus subsidy is boosting mobility — especially for poor men. Women's uptake is still limited by the structural safety barrier, not price.", "Bus subsidies are working well for most groups. The gender gap persists regardless of price — it reflects a safety problem that fare discounts can't fully fix."],
     timedOut: ["Time ran out. In extreme months, set AC first — then tax and subsidy.", "The clock beat you. Hit End Turn earlier next month."],
   },
   tooltips: {
     happiness: "Weighted city happiness across all four groups (poor women, poor men, rich women, rich men). Extreme weather hurts all groups; the gender gap is a structural background feature.",
     mobility: "City-wide average mobility. Masked by group differences — check gender and income gaps for the full picture.",
     congestion: "Road congestion. Uber tax reduces it. Bus subsidy reduces it by keeping riders off roads. Weather boosts it without AC.",
-    genderEquity: "100 minus the men/women mobility gap. Women avoid unsafe buses regardless of price — this gap reflects a structural barrier in Crestwood that your sliders can narrow but not eliminate.",
-    incomeEquity: "100 minus the rich/poor mobility gap. Closes when bus subsidies are high and Uber tax is moderate. Heavy Uber tax widens this gap.",
+    genderEquity: "100 minus the men/women mobility gap. Women avoid unsafe buses regardless of price — this gap reflects a structural barrier in Crestwood that your levers can narrow but not eliminate.",
+    incomeEquity: "100 minus the rich/poor mobility gap. Closes when bus subsidies are high (poor benefit most). Uber tax reduces rich mobility proportionally more, helping narrow the gap.",
     budget: "Remaining budget ($50M). Uber tax earns money. Bus and AC both cost money. AC costs scale with weather severity.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion. Hits wealthy riders ~2–3× harder than the poor — serving as a progressive funding source for bus comfort.",
+    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion significantly. Reduces mobility only slightly — hits wealthy riders harder. Women are the most price-sensitive group.",
     busSubsidy: "Bus fare discount. Strongly benefits poor male riders. Reaches women only partially — unsafe buses limit their uptake regardless of price.",
     acLevel: "Bus climate control. Essential for keeping all riders on buses in extreme weather. Funded by progressive Uber taxes.",
   },
@@ -251,15 +247,12 @@ function getTemp(roundIndex) {
   return { tempIndex: ti, tempDiscomfort: Math.abs(ti) };
 }
 
-// Non-linear Uber mobility loss curves, per group.
-// Women: ~1.5× steeper than men — higher Uber price sensitivity because buses
-// are not a safe substitute (structural gender barrier, not a player-controlled variable).
-// Poor: ~2.4× steeper than rich (income elasticity finding, City 3).
+// Linear Uber mobility loss — rates kept low (Ubers give low mobility gain)
+// Women: ~1.5× more price-sensitive than men (higher Uber elasticity)
+// Poor: lower base rate (they use buses more, Uber less)
 function uberLoss(tax, isWomen, isPoor) {
-  const base = isPoor
-    ? (tax <= 30 ? tax * 0.12 : tax <= 60 ? 3.6 + (tax - 30) * 0.28 : 12.0 + (tax - 60) * 0.42)
-    : (tax <= 30 ? tax * 0.45 : tax <= 60 ? 13.5 + (tax - 30) * 0.85 : 39.0 + (tax - 60) * 1.30);
-  return isWomen ? base * SIMULATION.gender.womenUberElasticityMultiplier : base;
+  const baseRate = isPoor ? 0.14 : 0.50;
+  return isWomen ? tax * baseRate * SIMULATION.gender.womenUberElasticityMultiplier : tax * baseRate;
 }
 
 function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
@@ -285,9 +278,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
       ? (isWomen ? bus.poorWomenBaseGain * WOMEN_BUS_ACCESS_MULTIPLIER : bus.poorMenGain)
       : (isWomen ? bus.richWomenBaseGain * WOMEN_BUS_ACCESS_MULTIPLIER : bus.richMenGain);
 
-    const busEffect = mobAfterUber < bus.mobilityFlipPoint
-      ? busSubsidy * busGain
-      : busSubsidy * -bus.constrainingLoss;
+    const busEffect = busSubsidy * busGain;
 
     // Women face an extra temperature-driven bus penalty:
     // unsafe + uncomfortable = doubly repellent (structural, fixed)
@@ -367,12 +358,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const hCongTotal = -(congestionLevel - SIMULATION.baseline.congestionLevel) * hw.congestionWeight;
   const hBudgTotal = -budgetStress * 28 * hw.budgetStressWeight;
 
-  const busIsConstraining = busSubsidy > 0 && (
-    (POP.poorMenBaseline - uberLoss(uberTax, false, true)) >= bus.mobilityFlipPoint ||
-    (POP.richMenBaseline - uberLoss(uberTax, false, false)) >= bus.mobilityFlipPoint ||
-    (POP.poorWomenBaseline - uberLoss(uberTax, true, true)) >= bus.mobilityFlipPoint ||
-    (POP.richWomenBaseline - uberLoss(uberTax, true, false)) >= bus.mobilityFlipPoint
-  );
+  const busIsConstraining = false; // flip mechanic removed — bus always boosts
   const weatherAlert = tempDiscomfort > 0.6 && acMitigation < 0.35;
 
   const uberEffect = -uberTax * uber.congestionReductionPerPercent;
@@ -491,8 +477,6 @@ function getMonthEndMessage(stats, uberTax, bus, ac, budgetFraction, timedOut, r
   const ti = SEASONS.tempIndex[roundIndex];
   if (stats.weatherAlert && ti > 0.5) return pickRandom(r.heatNeedingAC);
   if (stats.weatherAlert && ti < -0.5) return pickRandom(r.coldNeedingAC);
-  if (stats.busIsConstraining) return pickRandom(r.busConstraining);
-
   if (stats.genderEquityScore < SIMULATION.thresholds.genderEquity.warning)
     return pickRandom(r.genderGap);
   if (stats.incomeEquityScore < SIMULATION.thresholds.incomeEquity.warning)
@@ -723,11 +707,10 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
 
 
 function TaxZoneWarning({ tax }) {
-  if (tax <= 30) return null;
-  const steep = tax <= 60;
+  if (tax < 50) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, background: steep ? C.amberBg : C.redBg, border: `1px solid ${steep ? C.amberBorder : C.redBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: steep ? C.amber : C.red, marginTop: 3, marginBottom: 4 }}>
-      {steep ? "⚠️ Steep zone — women & poor hit hardest" : "🔴 Cliff — women and poor face near-total mobility loss"}
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: C.amber, marginTop: 3, marginBottom: 4 }}>
+      ⚠️ High tax — women & poor hit hardest, boost bus subsidy to offset
     </div>
   );
 }
@@ -884,7 +867,7 @@ function StructuralBanner({ items }) {
 
 function computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction) {
   const w = [];
-  if (uberTax > 60) w.push("Tax above 60% — women and poor riders take the sharpest hit.");
+  if (uberTax > 60 && busSubsidy < 30) w.push("High Uber tax with low bus subsidy — women and poor riders take the sharpest mobility hit.");
   if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6 && acLevel < 25) w.push("Extreme weather + AC below 25% — bus collapse risk. Women doubly stranded.");
   if (live.genderGap > 20) w.push(`Gender gap is ${Math.round(live.genderGap)} pts — structural barrier; observe which slider narrows it.`);
   if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget draining.");
@@ -1002,91 +985,71 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel,
           </div>
         )}
 
-        <StructuralBanner items={["Gender barrier: women receive only 15% of normal bus subsidy benefit (fixed)", "Income split: poor riders are ~2.4× more sensitive to Uber tax"]} />
+        <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
+          tooltip={ADVISOR.tooltips.uberTax} locked={locked}
+          tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
+          badge={<TaxZoneWarning tax={uberTax} />}
+          hint="Raises revenue · hits rich harder than poor · women most affected — pair with bus subsidy" />
+        <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
+          tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
+          tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
+          hint="Helps poor men most · women receive only ~15% of benefit due to safety barrier" />
+        <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor}
+          tooltip={ADVISOR.tooltips.acLevel} locked={locked}
+          tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
+          hint="Keeps buses viable in heat/cold · women face double barrier in extreme weather" />
+        <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
 
-        {(() => {
-          const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
-          const warnings = computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction);
-          if (warnings.length === 0) return null;
-          return (
-            <div style={{ marginBottom: 8 }}>
-              {warnings.map((w, i) => (
-                <div key={i} style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "5px 10px", fontSize: 10, color: C.amber, fontWeight: 700, marginBottom: 4 }}>
-                  ⚠️ {w}
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-
-        <div style={{ marginBottom: 10 }}><AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} /></div>
-
-        <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
-          <div style={{ width: 250, flexShrink: 0 }}>
-            {/* Policy card */}
-            <div style={{ background: C.cardBg, border: `1px solid ${warn ? C.red : C.border}`, borderRadius: 12, padding: "14px 14px 6px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", transition: "border 0.3s" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Set Policy</span>
-                {locked && <span style={{ fontSize: 10, color: C.red, fontWeight: 800 }}>🔒 LOCKED</span>}
+        {warnings.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            {warnings.map((w, i) => (
+              <div key={i} style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "5px 10px", fontSize: 10, color: C.amber, fontWeight: 700, marginBottom: 4 }}>
+                ⚠️ {w}
               </div>
-              <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
-                tooltip={ADVISOR.tooltips.uberTax} locked={locked}
-                tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
-                badge={<TaxZoneWarning tax={uberTax} />}
-                hint="Raises revenue · women and poor riders are most elastic (sensitive to price)" />
-              <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
-                tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
-                tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-                hint="Helps poor men most · women receive only ~15% of benefit due to safety barrier" />
-              <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor}
-                tooltip={ADVISOR.tooltips.acLevel} locked={locked}
-                tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-                hint="Keeps buses viable in heat/cold · women face double barrier in extreme weather" />
-              <BudgetDeltaPreview delta={live.monthlyDelta}
-                uberRevenue={live.uberRevenue} busCost={live.busCost}
-                acCost={live.acCost} />
-            </div>
+            ))}
           </div>
+        )}
+      </div>
 
-          <div style={{ flex: 1 }}>
-            {/* City road visualization */}
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", height: "100%" }}>
-              <div style={{ minHeight: 360, height: "100%", position: "relative" }}>
-                <CityRoadScene
-                  cityLevel={4}
-                  uberTax={uberTax}
-                  busSubsidy={busSubsidy}
-                  congestion={live.congestionLevel}
-                  seasonIcon={SEASONS.seasonIcon[roundIndex]}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div style={{ width: 250, flexShrink: 0, display: "flex", flexDirection: "column" }}>
-            {/* Live preview */}
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 12px 10px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", maxHeight: 520, overflowY: "auto" }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, position: "sticky", top: 0, background: C.cardBg, paddingBottom: 6 }}>Live Preview</div>
-              <GaugeBar label="Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} target="Goal: 65+" />
-              <GaugeBar label="Overall Mobility" value={live.cityMobility} type="mobility" target="Goal: 65+" />
-              <GenderGauge womenVal={live.womenMobility} menVal={live.menMobility} tooltip={ADVISOR.tooltips.mobility} />
-              <GaugeBar label="Gender Equity" value={live.genderEquityScore} type="genderEquity" tooltip={ADVISOR.tooltips.genderEquity} breakdown={live.genderEquityBreakdown} target="Goal: 62+" />
-              <GaugeBar label="Income Equity" value={live.incomeEquityScore} type="incomeEquity" tooltip={ADVISOR.tooltips.incomeEquity} breakdown={live.incomeEquityBreakdown} target="Goal: 60+" />
-              <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} breakdown={live.congestionBreakdown} target="Goal: under 40" />
-              <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $10M" />
-              <div style={{ marginTop: 8 }}>
-                <GroupBreakdown poorW={live.poorWomenMob} poorM={live.poorMenMob} richW={live.richWomenMob} richM={live.richMenMob} />
-              </div>
-            </div>
-
-            <button onClick={() => commitMonth(false)} disabled={locked}
-              style={{ width: "100%", background: locked ? C.border : C.rose, color: locked ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "13px", fontSize: 15, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer", transition: "background 0.2s", marginTop: "auto" }}>
-              {locked ? "⏳ Locking in..." : `✓ End Turn — Lock in ${month}'s Policy`}
-            </button>
+      <div style={{ flex: 1 }}>
+        {/* City road visualization */}
+        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", height: "100%" }}>
+          <div style={{ minHeight: 360, height: "100%", position: "relative" }}>
+            <CityRoadScene
+              cityLevel={4}
+              uberTax={uberTax}
+              busSubsidy={busSubsidy}
+              congestion={live.congestionLevel}
+              seasonIcon={SEASONS.seasonIcon[roundIndex]}
+            />
           </div>
         </div>
       </div>
+
+      <div style={{ width: 250, flexShrink: 0, display: "flex", flexDirection: "column" }}>
+        {/* Live preview */}
+        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 12px 10px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", maxHeight: 520, overflowY: "auto" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, position: "sticky", top: 0, background: C.cardBg, paddingBottom: 6 }}>Live Preview</div>
+          <GaugeBar label="Happiness" value={live.cityHappiness} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={live.happinessBreakdown} target="Goal: 65+" />
+          <GaugeBar label="Overall Mobility" value={live.cityMobility} type="mobility" target="Goal: 65+" />
+          <GenderGauge womenVal={live.womenMobility} menVal={live.menMobility} tooltip={ADVISOR.tooltips.mobility} />
+          <GaugeBar label="Gender Equity" value={live.genderEquityScore} type="genderEquity" tooltip={ADVISOR.tooltips.genderEquity} breakdown={live.genderEquityBreakdown} target="Goal: 62+" />
+          <GaugeBar label="Income Equity" value={live.incomeEquityScore} type="incomeEquity" tooltip={ADVISOR.tooltips.incomeEquity} breakdown={live.incomeEquityBreakdown} target="Goal: 60+" />
+          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} breakdown={live.congestionBreakdown} target="Goal: under 40" />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $10M" />
+          <div style={{ marginTop: 8 }}>
+            <GroupBreakdown poorW={live.poorWomenMob} poorM={live.poorMenMob} richW={live.richWomenMob} richM={live.richMenMob} />
+          </div>
+        </div>
+
+        <button onClick={() => commitMonth(false)} disabled={locked}
+          style={{ width: "100%", background: locked ? C.border : C.rose, color: locked ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "13px", fontSize: 15, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer", transition: "background 0.2s", marginTop: "auto" }}>
+          {locked ? "⏳ Locking in..." : `✓ End Turn — Lock in ${month}'s Policy`}
+        </button>
+      </div>
     </div>
+      </div >
+    </div >
   );
 }
 

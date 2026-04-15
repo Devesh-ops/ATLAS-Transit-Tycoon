@@ -54,10 +54,8 @@ const SIMULATION = {
     revenueRate: 0.0020,
   },
   bus: {
-    mobilityFlipPoint: 52,
-    mobilityGainPerPercentBelowFlip: 0.22,
-    mobilityLossPerPercentAboveFlip: 0.10,
-    congestionOffsetPerPercent: 0.16,
+    mobilityGainPerPercent: 0.35,         // high: bus subsidies boost mobility a lot
+    congestionOffsetPerPercent: 0.10,     // low: buses reduce congestion only slightly
     costRate: 0.0014,
   },
   ac: {
@@ -176,11 +174,11 @@ const ADVISOR = {
   },
   tooltips: {
     happiness: "Overall citizen satisfaction. Driven by mobility, congestion, and budget stress. Extreme weather months can drag this down sharply without AC.",
-    mobility: "How much citizens are moving. Uber tax reduces it non-linearly. Bus subsidy helps below the flip point. Weather penalty reduces it — AC mitigates this.",
+    mobility: "How much citizens are moving. Uber tax reduces it slightly. Bus subsidies raise it directly — buses are the main mobility lever. Weather penalty reduces it — AC mitigates this.",
     congestion: "Road congestion. Uber tax reduces it. Bus subsidy reduces it. Extreme weather boosts Uber demand and raises congestion without AC.",
     budget: "Remaining budget ($30M). Uber tax earns money. Bus subsidies and AC cost money. AC costs scale with weather severity.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion — but non-linearly reduces mobility. Gentle below 30%, steep 30–60%, punishing above 60%.",
-    busSubsidy: "Discount on bus fares. Boosts mobility below the flip point. Always reduces congestion. Costs budget. In extreme weather, low AC limits its effect — people avoid buses regardless of price.",
+    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion significantly. Reduces mobility only slightly — Ubers are a congestion lever, not a mobility lever.",
+    busSubsidy: "Discount on bus fares. Directly boosts mobility — buses are the key mobility lever. Reduces congestion slightly. Costs budget. In extreme weather, low AC limits its effect — people avoid buses regardless of price.",
     acLevel: "Bus climate control. At 0%, extreme weather empties buses — dropping mobility sharply. At 100%, buses stay attractive year-round. Costs scale with temperature extremity. Below 25% in extreme weather triggers a collapse.",
   },
 };
@@ -229,11 +227,9 @@ function getTemp(roundIndex) {
   return { tempIndex: ti, tempDiscomfort: Math.abs(ti) };
 }
 
-// Non-linear Uber mobility loss — single population, slightly steeper than City 1
+// Linear Uber mobility loss — small rate (Ubers give low mobility gain)
 function uberMobilityLoss(tax) {
-  if (tax <= 30) return tax * 0.18;
-  if (tax <= 60) return 5.4 + (tax - 30) * 0.50;
-  return 20.4 + (tax - 60) * 0.72;
+  return tax * 0.15;
 }
 
 function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
@@ -245,9 +241,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const uberLoss = uberMobilityLoss(uberTax);
   const mobilityBeforeBus = Math.max(0, baseline.mobilityScore - uberLoss);
 
-  const busEffect = mobilityBeforeBus < bus.mobilityFlipPoint
-    ? busSubsidy * bus.mobilityGainPerPercentBelowFlip
-    : busSubsidy * -bus.mobilityLossPerPercentAboveFlip;
+  const busEffect = busSubsidy * bus.mobilityGainPerPercent;
 
   // AC collapse: extreme weather + AC below threshold → 2.5× penalty
   const collapseActive = tempDiscomfort > 0.6 && acMitigation < SEASONS.acCollapseThreshold;
@@ -291,7 +285,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
     baseline.happinessScore + hMob + hCong + hBudg
   ));
 
-  const busIsConstraining = mobilityBeforeBus >= bus.mobilityFlipPoint && busSubsidy > 0;
+  const busIsConstraining = false; // flip mechanic removed — bus always boosts
   const weatherAlert = tempDiscomfort > 0.6 && acLevel < 30;
 
   return {
@@ -347,8 +341,8 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "🚕", color: C.red, bg: C.redBg, border: C.redBorder,
       title: "Uber tax crushed mobility",
-      body: `Average Uber tax was ${Math.round(avgU)}% — well into the cliff zone. Average mobility was ${Math.round(avgM)}. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). Stay in the 30–50% sweet spot.`,
-      research: "Cairo study: moderate price changes have little mobility effect. Large changes cause sharp substitution — the non-linear zone you hit.",
+      body: `Average Uber tax was ${Math.round(avgU)}%. High Uber tax reduces mobility — pair it with a strong bus subsidy to keep people moving. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). The fix: moderate Uber tax funding a generous bus subsidy.`,
+      research: "Cairo study: Uber price increases reduce mobility, especially for lower-income riders. Reinvesting tax revenue into bus subsidies and AC keeps the city moving.",
     });
   }
   if (avgC > 65 && avgU < 25) {
@@ -537,15 +531,6 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown, target, prev,
   );
 }
 
-function BusModeBadge({ mobilityBeforeBus, busSubsidy }) {
-  if (busSubsidy === 0) return null;
-  const boosting = mobilityBeforeBus < SIMULATION.bus.mobilityFlipPoint;
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: boosting ? C.greenBg : C.redBg, border: `1px solid ${boosting ? C.greenBorder : C.redBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: boosting ? C.green : C.red, marginBottom: 5 }}>
-      {boosting ? "🟢 Boosting mobility" : "🔴 Constraining mobility"}
-    </div>
-  );
-}
 
 function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge, hint }) {
   return (
@@ -574,11 +559,10 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
 }
 
 function TaxZoneWarning({ tax }) {
-  if (tax <= 30) return null;
-  const steep = tax <= 60;
+  if (tax < 50) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, background: steep ? C.amberBg : C.redBg, border: `1px solid ${steep ? C.amberBorder : C.redBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: steep ? C.amber : C.red, marginTop: 4 }}>
-      {steep ? "⚠️ Steep zone — mobility dropping noticeably" : "🔴 Cliff — mobility falling sharply past 60%"}
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: C.amber, marginTop: 4 }}>
+      ⚠️ High tax — Uber usage falling, boost bus subsidy to maintain mobility
     </div>
   );
 }
@@ -735,7 +719,7 @@ function StructuralBanner({ items }) {
 
 function computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction) {
   const w = [];
-  if (uberTax > 60) w.push("Tax above 60% — mobility drops sharply (cliff zone).");
+  if (uberTax > 60 && busSubsidy < 30) w.push("High Uber tax without bus subsidy — mobility will drop. Raise bus subsidy.");
   if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6 && acLevel < 25) w.push("Extreme weather + AC below 25% — bus collapse risk this month.");
   if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.3 && acLevel < 15) w.push("AC very low for seasonal conditions — riders may switch to Uber.");
   if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget is draining.");
@@ -747,12 +731,10 @@ function generateChangeSummary(stats, prevStats, uberTax, busSubsidy, acLevel, r
   const tempHigh = Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6;
   const tempMild = Math.abs(SEASONS.tempIndex[roundIndex]) < 0.3;
   if (uberTax > 0) {
-    if (uberTax > 60) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% raised revenue — but above 60%, mobility drops sharply.` });
-    else lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue with ${uberTax > 30 ? "moderate" : "low"} mobility cost.` });
+    lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue and cut congestion${uberTax > 60 ? " — raise bus subsidy to offset mobility loss" : ""}.` });
   }
   if (busSubsidy > 0) {
-    if (stats.busIsConstraining) lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) hit ridership ceiling — spending budget with limited gain.` });
-    else lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) supported mobility.` });
+    lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) boosted mobility and reduced congestion.` });
   }
   if (tempHigh) {
     if (acLevel < 25) lines.push({ icon: "🌡️", text: `Extreme weather with low AC (${acLevel}%) — buses became uncomfortable, riders switched to Uber.` });
@@ -846,98 +828,79 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
           </div>
         )}
 
-        <StructuralBanner items={["Weather-sensitive system: buses lose comfort in heat/cold", `Current: ${SEASONS.seasonLabel[roundIndex]} ${SEASONS.seasonIcon[roundIndex]}`]} />
+        <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
+          tooltip={ADVISOR.tooltips.uberTax} locked={locked}
+          tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
+          badge={<TaxZoneWarning tax={uberTax} />}
+          hint="Raises revenue · lowers congestion · pair with bus subsidy at high levels" />
+        <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
+          tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
+          tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
+          hint="Directly boosts mobility · costs budget · less effective if buses are uncomfortable (low AC)" />
+        <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor}
+          tooltip={ADVISOR.tooltips.acLevel} locked={locked}
+          tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
+          hint="Keeps buses comfortable in extreme weather · costs more in harsh months" />
+        <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
 
-        {(() => {
-          const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
-          const warnings = computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction);
-          if (warnings.length === 0) return null;
-          return (
-            <div style={{ marginBottom: 8 }}>
-              {warnings.map((w, i) => (
-                <div key={i} style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "5px 10px", fontSize: 10, color: C.amber, fontWeight: 700, marginBottom: 4 }}>
-                  ⚠️ {w}
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-
-        <div style={{ marginBottom: 10 }}><AdvisorBox message={ADVISOR.monthStartHints[roundIndex]} /></div>
-
-        <div style={{ display: "flex", gap: 12, alignItems: "stretch" }}>
-          <div style={{ width: 240, flexShrink: 0 }}>
-            {/* Policy card */}
-            <div style={{ background: C.cardBg, border: `1px solid ${warn ? C.red : C.border}`, borderRadius: 12, padding: "14px 14px 6px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", transition: "border 0.3s" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                <span style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Set Policy</span>
-                {locked && <span style={{ fontSize: 10, color: C.red, fontWeight: 800 }}>🔒 LOCKED</span>}
+        {warnings.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            {warnings.map((w, i) => (
+              <div key={i} style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "5px 10px", fontSize: 10, color: C.amber, fontWeight: 700, marginBottom: 4 }}>
+                ⚠️ {w}
               </div>
-              <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
-                tooltip={ADVISOR.tooltips.uberTax} locked={locked}
-                tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
-                badge={<TaxZoneWarning tax={uberTax} />}
-                hint="Raises revenue · lowers congestion · above 60% hits mobility sharply" />
-              <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
-                tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
-                tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-                badge={<BusModeBadge mobilityBeforeBus={live.mobilityBeforeBus} busSubsidy={busSubsidy} />}
-                hint="Boosts mobility · costs budget · less effective if buses are uncomfortable (low AC)" />
-              <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor}
-                tooltip={ADVISOR.tooltips.acLevel} locked={locked}
-                tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-                hint="Keeps buses comfortable in extreme weather · costs more in harsh months" />
-              <BudgetDeltaPreview delta={live.monthlyDelta} uberRevenue={live.uberRevenue} busCost={live.busCost} acCost={live.acCost} />
-            </div>
+            ))}
           </div>
+        )}
+      </div>
 
-          <div style={{ flex: 1 }}>
-            {/* City road visualization */}
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", height: "100%" }}>
-              <div style={{ minHeight: 360, height: "100%", position: "relative" }}>
-                <CityRoadScene
-                  cityLevel={2}
-                  uberTax={uberTax}
-                  busSubsidy={busSubsidy}
-                  congestion={live.congestionLevel}
-                  seasonIcon={SEASONS.seasonIcon[roundIndex]}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div style={{ width: 240, flexShrink: 0, display: "flex", flexDirection: "column" }}>
-            {/* Live preview */}
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 12px 10px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", maxHeight: 520, overflowY: "auto" }}>
-              <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, position: "sticky", top: 0, background: C.cardBg, paddingBottom: 6 }}>Live Preview</div>
-              <GaugeBar
-                label="Happiness"
-                value={live.happinessScore}
-                type="happiness"
-                tooltip={ADVISOR.tooltips.happiness}
-                breakdown={live.happinessBreakdown}
-                target="Goal: 65+"
-              />
-              <GaugeBar
-                label="Mobility"
-                value={live.mobilityScore}
-                type="mobility"
-                tooltip={ADVISOR.tooltips.mobility}
-                breakdown={live.mobilityBreakdown}
-                target="Target: 55–75"
-              />
-              <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
-              <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $6M" />
-            </div>
-
-            <button onClick={() => commitMonth(false)} disabled={locked}
-              style={{ width: "100%", background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "13px", fontSize: 15, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer", transition: "background 0.2s", marginTop: "auto" }}>
-              {locked ? "⏳ Locking in..." : `✓ End Turn — Lock in ${month}'s Policy`}
-            </button>
+      <div style={{ flex: 1 }}>
+        {/* City road visualization */}
+        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", height: "100%" }}>
+          <div style={{ minHeight: 360, height: "100%", position: "relative" }}>
+            <CityRoadScene
+              cityLevel={2}
+              uberTax={uberTax}
+              busSubsidy={busSubsidy}
+              congestion={live.congestionLevel}
+              seasonIcon={SEASONS.seasonIcon[roundIndex]}
+            />
           </div>
         </div>
       </div>
+
+      <div style={{ width: 240, flexShrink: 0, display: "flex", flexDirection: "column" }}>
+        {/* Live preview */}
+        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 12px 10px", marginBottom: 9, boxShadow: "0 1px 6px rgba(0,0,0,0.06)", maxHeight: 520, overflowY: "auto" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10, position: "sticky", top: 0, background: C.cardBg, paddingBottom: 6 }}>Live Preview</div>
+          <GaugeBar
+            label="Happiness"
+            value={live.happinessScore}
+            type="happiness"
+            tooltip={ADVISOR.tooltips.happiness}
+            breakdown={live.happinessBreakdown}
+            target="Goal: 65+"
+          />
+          <GaugeBar
+            label="Mobility"
+            value={live.mobilityScore}
+            type="mobility"
+            tooltip={ADVISOR.tooltips.mobility}
+            breakdown={live.mobilityBreakdown}
+            target="Target: 55–75"
+          />
+          <GaugeBar label="Congestion" value={live.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" />
+          <GaugeBar label="Budget" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $6M" />
+        </div>
+
+        <button onClick={() => commitMonth(false)} disabled={locked}
+          style={{ width: "100%", background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff", border: "none", borderRadius: 10, padding: "13px", fontSize: 15, fontWeight: 800, cursor: locked ? "not-allowed" : "pointer", transition: "background 0.2s", marginTop: "auto" }}>
+          {locked ? "⏳ Locking in..." : `✓ End Turn — Lock in ${month}'s Policy`}
+        </button>
+      </div>
     </div>
+      </div >
+    </div >
   );
 }
 
