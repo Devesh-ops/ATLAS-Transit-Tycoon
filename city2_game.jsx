@@ -52,10 +52,8 @@ const SIMULATION = {
     revenueRate: 0.0020,
   },
   bus: {
-    mobilityFlipPoint: 52,
-    mobilityGainPerPercentBelowFlip: 0.22,
-    mobilityLossPerPercentAboveFlip: 0.10,
-    congestionOffsetPerPercent: 0.16,
+    mobilityGainPerPercent: 0.35,         // high: bus subsidies boost mobility a lot
+    congestionOffsetPerPercent: 0.10,     // low: buses reduce congestion only slightly
     costRate: 0.0014,
   },
   ac: {
@@ -174,11 +172,11 @@ const ADVISOR = {
   },
   tooltips: {
     happiness: "Overall citizen satisfaction. Driven by mobility, congestion, and budget stress. Extreme weather months can drag this down sharply without AC.",
-    mobility: "How much citizens are moving. Uber tax reduces it non-linearly. Bus subsidy helps below the flip point. Weather penalty reduces it — AC mitigates this.",
+    mobility: "How much citizens are moving. Uber tax reduces it slightly. Bus subsidies raise it directly — buses are the main mobility lever. Weather penalty reduces it — AC mitigates this.",
     congestion: "Road congestion. Uber tax reduces it. Bus subsidy reduces it. Extreme weather boosts Uber demand and raises congestion without AC.",
     budget: "Remaining budget ($30M). Uber tax earns money. Bus subsidies and AC cost money. AC costs scale with weather severity.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion — but non-linearly reduces mobility. Gentle below 30%, steep 30–60%, punishing above 60%.",
-    busSubsidy: "Discount on bus fares. Boosts mobility below the flip point. Always reduces congestion. Costs budget. In extreme weather, low AC limits its effect — people avoid buses regardless of price.",
+    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion significantly. Reduces mobility only slightly — Ubers are a congestion lever, not a mobility lever.",
+    busSubsidy: "Discount on bus fares. Directly boosts mobility — buses are the key mobility lever. Reduces congestion slightly. Costs budget. In extreme weather, low AC limits its effect — people avoid buses regardless of price.",
     acLevel: "Bus climate control. At 0%, extreme weather empties buses — dropping mobility sharply. At 100%, buses stay attractive year-round. Costs scale with temperature extremity. Below 25% in extreme weather triggers a collapse.",
   },
 };
@@ -227,9 +225,9 @@ function getTemp(roundIndex) {
   return { tempIndex: ti, tempDiscomfort: Math.abs(ti) };
 }
 
-// Linear Uber mobility loss
+// Linear Uber mobility loss — small rate (Ubers give low mobility gain)
 function uberMobilityLoss(tax) {
-  return tax * 0.50;
+  return tax * 0.15;
 }
 
 function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
@@ -241,9 +239,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const uberLoss = uberMobilityLoss(uberTax);
   const mobilityBeforeBus = Math.max(0, baseline.mobilityScore - uberLoss);
 
-  const busEffect = mobilityBeforeBus < bus.mobilityFlipPoint
-    ? busSubsidy * bus.mobilityGainPerPercentBelowFlip
-    : busSubsidy * -bus.mobilityLossPerPercentAboveFlip;
+  const busEffect = busSubsidy * bus.mobilityGainPerPercent;
 
   // AC collapse: extreme weather + AC below threshold → 2.5× penalty
   const collapseActive = tempDiscomfort > 0.6 && acMitigation < SEASONS.acCollapseThreshold;
@@ -283,7 +279,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
     - budgetStress * 25 * happiness.budgetStressWeight
   ));
 
-  const busIsConstraining = mobilityBeforeBus >= bus.mobilityFlipPoint && busSubsidy > 0;
+  const busIsConstraining = false; // flip mechanic removed — bus always boosts
   const weatherAlert = tempDiscomfort > 0.6 && acLevel < 30;
 
   const hMob = mobilityGain * happiness.mobilityWeight;
@@ -335,8 +331,8 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "🚕", color: C.red, bg: C.redBg, border: C.redBorder,
       title: "Uber tax crushed mobility",
-      body: `Average Uber tax was ${Math.round(avgU)}% — well into the cliff zone. Average mobility was ${Math.round(avgM)}. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). Stay in the 30–50% sweet spot.`,
-      research: "Cairo study: moderate price changes have little mobility effect. Large changes cause sharp substitution — the non-linear zone you hit.",
+      body: `Average Uber tax was ${Math.round(avgU)}%. High Uber tax reduces mobility — pair it with a strong bus subsidy to keep people moving. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). The fix: moderate Uber tax funding a generous bus subsidy.`,
+      research: "Cairo study: Uber price increases reduce mobility, especially for lower-income riders. Reinvesting tax revenue into bus subsidies and AC keeps the city moving.",
     });
   }
   if (avgC > 65 && avgU < 25) {
@@ -470,15 +466,6 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown, target, prev,
   );
 }
 
-function BusModeBadge({ mobilityBeforeBus, busSubsidy }) {
-  if (busSubsidy === 0) return null;
-  const boosting = mobilityBeforeBus < SIMULATION.bus.mobilityFlipPoint;
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: boosting ? C.greenBg : C.redBg, border: `1px solid ${boosting ? C.greenBorder : C.redBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: boosting ? C.green : C.red, marginBottom: 5 }}>
-      {boosting ? "🟢 Boosting mobility" : "🔴 Constraining mobility"}
-    </div>
-  );
-}
 
 function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge, hint }) {
   return (
@@ -507,11 +494,10 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
 }
 
 function TaxZoneWarning({ tax }) {
-  if (tax <= 30) return null;
-  const steep = tax <= 60;
+  if (tax < 50) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, background: steep ? C.amberBg : C.redBg, border: `1px solid ${steep ? C.amberBorder : C.redBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: steep ? C.amber : C.red, marginTop: 4 }}>
-      {steep ? "⚠️ Steep zone — mobility dropping noticeably" : "🔴 Cliff — mobility falling sharply past 60%"}
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: C.amber, marginTop: 4 }}>
+      ⚠️ High tax — Uber usage falling, boost bus subsidy to maintain mobility
     </div>
   );
 }
@@ -668,7 +654,7 @@ function StructuralBanner({ items }) {
 
 function computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction) {
   const w = [];
-  if (uberTax > 60) w.push("Tax above 60% — mobility drops sharply (cliff zone).");
+  if (uberTax > 60 && busSubsidy < 30) w.push("High Uber tax without bus subsidy — mobility will drop. Raise bus subsidy.");
   if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6 && acLevel < 25) w.push("Extreme weather + AC below 25% — bus collapse risk this month.");
   if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.3 && acLevel < 15) w.push("AC very low for seasonal conditions — riders may switch to Uber.");
   if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget is draining.");
@@ -680,12 +666,10 @@ function generateChangeSummary(stats, prevStats, uberTax, busSubsidy, acLevel, r
   const tempHigh = Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6;
   const tempMild = Math.abs(SEASONS.tempIndex[roundIndex]) < 0.3;
   if (uberTax > 0) {
-    if (uberTax > 60) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% raised revenue — but above 60%, mobility drops sharply.` });
-    else lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue with ${uberTax > 30 ? "moderate" : "low"} mobility cost.` });
+    lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue and cut congestion${uberTax > 60 ? " — raise bus subsidy to offset mobility loss" : ""}.` });
   }
   if (busSubsidy > 0) {
-    if (stats.busIsConstraining) lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) hit ridership ceiling — spending budget with limited gain.` });
-    else lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) supported mobility.` });
+    lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) boosted mobility and reduced congestion.` });
   }
   if (tempHigh) {
     if (acLevel < 25) lines.push({ icon: "🌡️", text: `Extreme weather with low AC (${acLevel}%) — buses became uncomfortable, riders switched to Uber.` });
@@ -822,12 +806,11 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
             tooltip={ADVISOR.tooltips.uberTax} locked={locked}
             tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
             badge={<TaxZoneWarning tax={uberTax} />}
-            hint="Raises revenue · lowers congestion · above 60% hits mobility sharply" />
+            hint="Raises revenue · lowers congestion · pair with bus subsidy at high levels" />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
             tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            badge={<BusModeBadge mobilityBeforeBus={live.mobilityBeforeBus} busSubsidy={busSubsidy} />}
-            hint="Boosts mobility · costs budget · less effective if buses are uncomfortable (low AC)" />
+            hint="Directly boosts mobility · costs budget · less effective if buses are uncomfortable (low AC)" />
           <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor}
             tooltip={ADVISOR.tooltips.acLevel} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}

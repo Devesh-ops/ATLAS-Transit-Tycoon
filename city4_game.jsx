@@ -85,14 +85,10 @@ const SIMULATION = {
   },
 
   bus: {
-    // Flip point: bus subsidies boost mobility below this, constrain above
-    mobilityFlipPoint: 55,
-    // Base gains per % subsidy (below flip)
+    // Linear gains — poor benefit much more from bus subsidies than rich (equity lever)
     poorMenGain: 0.28, poorWomenBaseGain: 0.28,
     richMenGain: 0.10, richWomenBaseGain: 0.10,
-    // Above flip — constraining loss
-    constrainingLoss: 0.07,
-    congestionOffsetPerPercent: 0.17,
+    congestionOffsetPerPercent: 0.10,  // low: buses reduce congestion only slightly
     costRate: 0.0013,
   },
 
@@ -218,7 +214,7 @@ const ADVISOR = {
     revenueGain: ["Budget grew — tax revenue covers both cost streams. This is the self-funding model working.", "Positive budget month. Keep this balance and equity will follow."],
     balanced: ["Steady policy. City moving, gaps visible but contained, budget stable.", "Three levers calibrated. Compound this over the year."],
     noPolicy: ["No levers engaged. Buses cold, unsubsidised. Women and the poor bear the full cost.", "Laissez-faire month. Both gaps — income and gender — widen without intervention."],
-    busConstraining: ["Bus subsidies are maxed out, but mobility is stalling. Riders are hitting the bus capacity limit — try lowering the subsidy to save budget.", "Max bus subsidies have hit the ridership ceiling. You're spending budget without gaining more mobility. Consider reinvesting into AC instead."],
+    highBusSubsidy: ["High bus subsidy is boosting mobility — especially for poor men. Women's uptake is still limited by the structural safety barrier, not price.", "Bus subsidies are working well for most groups. The gender gap persists regardless of price — it reflects a safety problem that fare discounts can't fully fix."],
     timedOut: ["Time ran out. In extreme months, set AC first — then tax and subsidy.", "The clock beat you. Hit End Turn earlier next month."],
   },
   tooltips: {
@@ -226,9 +222,9 @@ const ADVISOR = {
     mobility: "City-wide average mobility. Masked by group differences — check gender and income gaps for the full picture.",
     congestion: "Road congestion. Uber tax reduces it. Bus subsidy reduces it by keeping riders off roads. Weather boosts it without AC.",
     genderEquity: "100 minus the men/women mobility gap. Women avoid unsafe buses regardless of price — this gap reflects a structural barrier in Crestwood that your levers can narrow but not eliminate.",
-    incomeEquity: "100 minus the rich/poor mobility gap. Closes when bus subsidies are high and Uber tax is moderate. Heavy Uber tax widens this gap.",
+    incomeEquity: "100 minus the rich/poor mobility gap. Closes when bus subsidies are high (poor benefit most). Uber tax reduces rich mobility proportionally more, helping narrow the gap.",
     budget: "Remaining budget ($50M). Uber tax earns money. Bus and AC both cost money. AC costs scale with weather severity.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion. Hits wealthy riders ~2–3× harder than the poor — serving as a progressive funding source for bus comfort.",
+    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion significantly. Reduces mobility only slightly — hits wealthy riders harder. Women are the most price-sensitive group.",
     busSubsidy: "Bus fare discount. Strongly benefits poor male riders. Reaches women only partially — unsafe buses limit their uptake regardless of price.",
     acLevel: "Bus climate control. Essential for keeping all riders on buses in extreme weather. Funded by progressive Uber taxes.",
   },
@@ -251,11 +247,11 @@ function getTemp(roundIndex) {
   return { tempIndex: ti, tempDiscomfort: Math.abs(ti) };
 }
 
-// Linear Uber mobility loss - separate rates for each group
-// Women: ~1.5× steeper than men (higher Uber price sensitivity)
-// Poor: ~2.4× steeper than rich (income elasticity)
+// Linear Uber mobility loss — rates kept low (Ubers give low mobility gain)
+// Women: ~1.5× more price-sensitive than men (higher Uber elasticity)
+// Poor: lower base rate (they use buses more, Uber less)
 function uberLoss(tax, isWomen, isPoor) {
-  const baseRate = isPoor ? 0.28 : 0.90;
+  const baseRate = isPoor ? 0.14 : 0.50;
   return isWomen ? tax * baseRate * SIMULATION.gender.womenUberElasticityMultiplier : tax * baseRate;
 }
 
@@ -282,9 +278,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
       ? (isWomen ? bus.poorWomenBaseGain * WOMEN_BUS_ACCESS_MULTIPLIER : bus.poorMenGain)
       : (isWomen ? bus.richWomenBaseGain * WOMEN_BUS_ACCESS_MULTIPLIER : bus.richMenGain);
 
-    const busEffect = mobAfterUber < bus.mobilityFlipPoint
-      ? busSubsidy * busGain
-      : busSubsidy * -bus.constrainingLoss;
+    const busEffect = busSubsidy * busGain;
 
     // Women face an extra temperature-driven bus penalty:
     // unsafe + uncomfortable = doubly repellent (structural, fixed)
@@ -365,12 +359,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const hCongTotal = -(congestionLevel - SIMULATION.baseline.congestionLevel) * hw.congestionWeight;
   const hBudgTotal = -budgetStress * 28 * hw.budgetStressWeight;
 
-  const busIsConstraining = busSubsidy > 0 && (
-    (POP.poorMenBaseline - uberLoss(uberTax, false, true)) >= bus.mobilityFlipPoint ||
-    (POP.richMenBaseline - uberLoss(uberTax, false, false)) >= bus.mobilityFlipPoint ||
-    (POP.poorWomenBaseline - uberLoss(uberTax, true, true)) >= bus.mobilityFlipPoint ||
-    (POP.richWomenBaseline - uberLoss(uberTax, true, false)) >= bus.mobilityFlipPoint
-  );
+  const busIsConstraining = false; // flip mechanic removed — bus always boosts
   const weatherAlert = tempDiscomfort > 0.6 && acMitigation < 0.35;
 
   return {
@@ -469,8 +458,6 @@ function getMonthEndMessage(stats, uberTax, bus, ac, budgetFraction, timedOut, r
   const ti = SEASONS.tempIndex[roundIndex];
   if (stats.weatherAlert && ti > 0.5) return pickRandom(r.heatNeedingAC);
   if (stats.weatherAlert && ti < -0.5) return pickRandom(r.coldNeedingAC);
-  if (stats.busIsConstraining) return pickRandom(r.busConstraining);
-
   if (stats.genderEquityScore < SIMULATION.thresholds.genderEquity.warning)
     return pickRandom(r.genderGap);
   if (stats.incomeEquityScore < SIMULATION.thresholds.incomeEquity.warning)
@@ -640,11 +627,10 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
 
 
 function TaxZoneWarning({ tax }) {
-  if (tax <= 30) return null;
-  const steep = tax <= 60;
+  if (tax < 50) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, background: steep ? C.amberBg : C.redBg, border: `1px solid ${steep ? C.amberBorder : C.redBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: steep ? C.amber : C.red, marginTop: 3, marginBottom: 4 }}>
-      {steep ? "⚠️ Steep zone — women & poor hit hardest" : "🔴 Cliff — women and poor face near-total mobility loss"}
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: C.amber, marginTop: 3, marginBottom: 4 }}>
+      ⚠️ High tax — women & poor hit hardest, boost bus subsidy to offset
     </div>
   );
 }
@@ -801,7 +787,7 @@ function StructuralBanner({ items }) {
 
 function computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction) {
   const w = [];
-  if (uberTax > 60) w.push("Tax above 60% — women and poor riders take the sharpest hit.");
+  if (uberTax > 60 && busSubsidy < 30) w.push("High Uber tax with low bus subsidy — women and poor riders take the sharpest mobility hit.");
   if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6 && acLevel < 25) w.push("Extreme weather + AC below 25% — bus collapse risk. Women doubly stranded.");
   if (live.genderGap > 20) w.push(`Gender gap is ${Math.round(live.genderGap)} pts — structural barrier; observe which lever narrows it.`);
   if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget draining.");
@@ -961,7 +947,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel,
             tooltip={ADVISOR.tooltips.uberTax} locked={locked}
             tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
             badge={<TaxZoneWarning tax={uberTax} />}
-            hint="Raises revenue · women and poor riders are most elastic (sensitive to price)" />
+            hint="Raises revenue · hits rich harder than poor · women most affected — pair with bus subsidy" />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
             tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}

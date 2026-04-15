@@ -239,8 +239,9 @@ const VEHICLE_KEYFRAMES = `
 // ─────────────────────────────────────────────────────────────
 //  CAR
 // ─────────────────────────────────────────────────────────────
-function Car({ delay, duration, color, visible, yOffset, laneH }) {
+function Car({ delay, duration, color, visible, yOffset, laneH, direction = "right" }) {
   const top = Math.round(laneH / 2 - 7 + yOffset);
+  const anim = direction === "left" ? "crs-driveLeft" : "crs-driveRight";
   return (
     <div style={{
       position: "absolute",
@@ -250,7 +251,7 @@ function Car({ delay, duration, color, visible, yOffset, laneH }) {
       borderRadius: 3,
       opacity: visible ? 1 : 0,
       transition: "opacity 0.5s",
-      animation: `crs-driveRight ${duration}s ${delay}s linear infinite`,
+      animation: `${anim} ${duration}s ${delay}s linear infinite`,
       zIndex: 2,
       willChange: "left",
     }}>
@@ -265,8 +266,9 @@ function Car({ delay, duration, color, visible, yOffset, laneH }) {
 // ─────────────────────────────────────────────────────────────
 //  BUS
 // ─────────────────────────────────────────────────────────────
-function Bus({ delay, duration, visible, yOffset, laneH }) {
+function Bus({ delay, duration, visible, yOffset, laneH, direction = "left" }) {
   const top = Math.round(laneH / 2 - 10 + yOffset);
+  const anim = direction === "right" ? "crs-driveRight" : "crs-driveLeft";
   return (
     <div style={{
       position: "absolute",
@@ -276,7 +278,7 @@ function Bus({ delay, duration, visible, yOffset, laneH }) {
       borderRadius: 3,
       opacity: visible ? 1 : 0,
       transition: "opacity 0.5s",
-      animation: `crs-driveLeft ${duration}s ${delay}s linear infinite`,
+      animation: `${anim} ${duration}s ${delay}s linear infinite`,
       zIndex: 2,
       willChange: "left",
     }}>
@@ -296,10 +298,11 @@ function Bus({ delay, duration, visible, yOffset, laneH }) {
 function CityRoad({ cfg, uberTax, busSubsidy, congestion }) {
   const { lanes, roadLaneH: laneH, sidewalkH: swH, sidewalkColor, roadColor, roadColorAlt } = cfg;
 
-  // Vehicle visibility — policy drives count
-  const carPressure = Math.max(0, (1 - uberTax / 100)) * (0.4 + 0.6 * (congestion / 100));
-  const visibleCars = Math.min(MAX_CARS, Math.round(MAX_CARS * carPressure));
-  const visibleBuses = Math.min(MAX_BUSES, Math.round(MAX_BUSES * (busSubsidy / 100)));
+  // Vehicle visibility — buses: 1 baseline + 1 per 10% subsidy (linear, always at least 1)
+  // Cars: always some even at high Uber tax, linear with policy
+  const visibleBuses = Math.min(MAX_BUSES, 1 + Math.floor(busSubsidy / 10));
+  const carPressure = 0.2 + 0.8 * (1 - uberTax / 100);
+  const visibleCars = Math.max(2, Math.round(MAX_CARS * carPressure * (0.4 + 0.6 * congestion / 100)));
 
   // Speed: high congestion slows traffic
   const slowFactor = 1 + (congestion / 100) * 2.2;
@@ -310,42 +313,67 @@ function CityRoad({ cfg, uberTax, busSubsidy, congestion }) {
     ? `rgba(210, 75, 20, ${tintAlpha})`
     : `rgba(200, 140, 10, ${tintAlpha})`;
 
-  const renderCarLane = (li) => {
-    const pool = lanes === 1 ? CAR_POOL : CAR_POOL.filter(c => c.laneSlot === li % 2);
-    const active = lanes === 1 ? visibleCars : Math.round(visibleCars * (li === 0 ? 0.55 : 0.45));
+  // Upper half lanes: mostly cars (→) + some buses (←) — mixed traffic both sides
+  const renderUpperLane = (li) => {
+    const carPool = lanes === 1 ? CAR_POOL : CAR_POOL.filter(c => c.laneSlot === li % 2);
+    const busPool = lanes === 1 ? BUS_POOL : BUS_POOL.filter(b => b.laneSlot === li % 2);
+    const activeCars = lanes === 1 ? Math.ceil(visibleCars * 0.65) : Math.ceil(visibleCars * 0.65 / lanes);
+    const activeBuses = Math.floor(visibleBuses * 0.4 / lanes);
     return (
-      <div key={`car-${li}`} style={{ position: "relative", height: laneH, background: roadColor, overflow: "hidden" }}>
+      <div key={`upper-${li}`} style={{ position: "relative", height: laneH, background: roadColor, overflow: "hidden" }}>
         {li < lanes - 1 && (
           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2,
             background: "repeating-linear-gradient(90deg, rgba(255,255,255,0.3) 0, rgba(255,255,255,0.3) 20px, transparent 20px, transparent 42px)" }} />
         )}
-        {pool.map((car, ci) => (
+        {carPool.map((car, ci) => (
           <Car key={car.id}
             delay={car.delay}
             duration={car.baseDuration * slowFactor}
             color={car.color}
-            visible={ci < active}
+            visible={ci < activeCars}
             yOffset={car.yOffset}
             laneH={laneH} />
+        ))}
+        {busPool.map((bus, bi) => (
+          <Bus key={bus.id}
+            delay={bus.delay}
+            duration={bus.baseDuration * (slowFactor * 0.72)}
+            visible={bi < activeBuses}
+            yOffset={bus.yOffset}
+            laneH={laneH}
+            direction="right" />
         ))}
       </div>
     );
   };
 
-  const renderBusLane = (li) => {
-    const pool = lanes === 1 ? BUS_POOL : BUS_POOL.filter(b => b.laneSlot === li % 2);
-    const active = lanes === 1 ? visibleBuses : Math.ceil(visibleBuses / lanes);
+  // Lower half lanes: mostly buses (←) + some cars (←) — all traffic going left
+  const renderLowerLane = (li) => {
+    const carPool = lanes === 1 ? CAR_POOL : CAR_POOL.filter(c => c.laneSlot === li % 2);
+    const busPool = lanes === 1 ? BUS_POOL : BUS_POOL.filter(b => b.laneSlot === li % 2);
+    const activeBuses = lanes === 1 ? Math.ceil(visibleBuses * 0.6) : Math.ceil(visibleBuses * 0.6 / lanes);
+    const activeCars = Math.floor(visibleCars * 0.35 / lanes);
     return (
-      <div key={`bus-${li}`} style={{ position: "relative", height: laneH, background: roadColorAlt, overflow: "hidden" }}>
+      <div key={`lower-${li}`} style={{ position: "relative", height: laneH, background: roadColorAlt, overflow: "hidden" }}>
         {li < lanes - 1 && (
           <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 2,
             background: "repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0, rgba(255,255,255,0.18) 20px, transparent 20px, transparent 42px)" }} />
         )}
-        {pool.map((bus, bi) => (
+        {carPool.map((car, ci) => (
+          <Car key={car.id}
+            delay={car.delay}
+            duration={car.baseDuration * slowFactor}
+            color={car.color}
+            visible={ci < activeCars}
+            yOffset={car.yOffset}
+            laneH={laneH}
+            direction="left" />
+        ))}
+        {busPool.map((bus, bi) => (
           <Bus key={bus.id}
             delay={bus.delay}
             duration={bus.baseDuration * (slowFactor * 0.72)}
-            visible={bi < active}
+            visible={bi < activeBuses}
             yOffset={bus.yOffset}
             laneH={laneH} />
         ))}
@@ -361,12 +389,12 @@ function CityRoad({ cfg, uberTax, busSubsidy, congestion }) {
       )}
       {/* Top sidewalk */}
       <div style={{ height: swH, background: sidewalkColor }} />
-      {/* Car lanes → */}
-      {Array.from({ length: lanes }, (_, i) => renderCarLane(i))}
+      {/* Upper lanes: cars + buses mixed → */}
+      {Array.from({ length: lanes }, (_, i) => renderUpperLane(i))}
       {/* Center double-yellow divider */}
       <div style={{ height: 4, background: roadColor, borderTop: "2px solid rgba(252,211,77,0.7)", borderBottom: "2px solid rgba(252,211,77,0.7)" }} />
-      {/* Bus lanes ← */}
-      {Array.from({ length: lanes }, (_, i) => renderBusLane(i))}
+      {/* Lower lanes: buses + cars mixed ← */}
+      {Array.from({ length: lanes }, (_, i) => renderLowerLane(i))}
       {/* Bottom sidewalk */}
       <div style={{ height: swH, background: sidewalkColor }} />
     </div>
