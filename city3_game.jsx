@@ -514,14 +514,7 @@ function SplitGauge({ poorVal, richVal, tooltip, label = "Mobility Split", type 
   );
 }
 
-function BusModeBadge({ busSubsidy }) {
-  if (busSubsidy === 0) return null;
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 5 }}>
-      🟢 Boosting poor mobility
-    </div>
-  );
-}
+
 
 function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge, hint }) {
   return (
@@ -858,7 +851,6 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
           <SliderInput label="Uber Tax" value={uberTax} onChange={onUberChange} color={C.uberColor} tooltip={ADVISOR.tooltips.uberTax} locked={locked} tag={{ text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
             hint="Raises revenue · hits rich riders harder than poor · pair with bus subsidy at high levels" />
           <SliderInput label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor} tooltip={ADVISOR.tooltips.busSubsidy} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            badge={<BusModeBadge busSubsidy={busSubsidy} />}
             hint="Directly boosts poor mobility · funded by Uber tax · poor benefit far more than rich" />
           <SliderInput label="Bus AC & Heating" value={acLevel} onChange={onACChange} color={C.acColor} tooltip={ADVISOR.tooltips.acLevel} locked={locked} tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
             hint="Prevents weather-driven bus collapse · costs more in summer/winter" />

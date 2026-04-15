@@ -414,14 +414,6 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown, target, prev,
   );
 }
 
-function BusModeBadge({ busSubsidy }) {
-  if (busSubsidy === 0) return null;
-  return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 5 }}>
-      🟢 Boosting mobility
-    </div>
-  );
-}
 
 function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge, hint }) {
   return (
@@ -726,7 +718,6 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
             tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            badge={<BusModeBadge busSubsidy={busSubsidy} />}
             hint="Directly boosts mobility · funds bus service · always reduces congestion slightly"
           />
           <BudgetDeltaPreview delta={live.monthlyDelta} />
