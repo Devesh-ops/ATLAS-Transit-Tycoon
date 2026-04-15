@@ -32,19 +32,15 @@ const CITY_META = {
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const TIMER = { monthDuration: 20, warningAt: 5, endingDuration: 1200 };
 
-// Non-linear Uber tax: three zones match Cairo research finding that large price
-// changes cause sharp mode-switching, while moderate changes barely shift behaviour.
 const SIMULATION = {
   baseline: { mobilityScore: 60, congestionLevel: 45, happinessScore: 50 },
   uber: {
-    congestionReductionPerPercent: 0.45,
+    congestionReductionPerPercent: 0.45,  // high: taxing Uber reduces congestion a lot
     revenuePerPercent: 0.10,
   },
   bus: {
-    mobilityFlipPoint: 50,
-    mobilityGainPerPercentBelowFlip: 0.24,
-    mobilityLossPerPercentAboveFlip: 0.12,
-    congestionOffsetPerPercent: 0.15,
+    mobilityGainPerPercent: 0.35,         // high: bus subsidies boost mobility a lot
+    congestionOffsetPerPercent: 0.10,     // low: buses reduce congestion only slightly
   },
   happiness: {
     mobilityWeight: 0.60,
@@ -115,16 +111,10 @@ const ADVISOR = {
       "Gridlock. The mobility gains are being eaten by time lost in traffic."
     ],
     lowMobility: [
-      "Mobility has dropped. The Uber tax may be too high — you're past the cliff. Ease back or boost bus.",
-      "Citizens aren't moving much. Above 60% tax, mobility falls sharply. We need more flow.",
+      "Mobility has dropped. The Uber tax may be too high — ease back or boost bus subsidies.",
+      "Citizens aren't moving much. High Uber tax reduces Uber use; pair it with a higher bus subsidy.",
       "The city feels stuck. High taxes without strong bus support leaves people stranded.",
       "People aren't moving enough. Consider lowering the tax or increasing the bus subsidy."
-    ],
-    busConstraining: [
-      "Mobility is above 50 — your bus subsidy is pulling it back down. Fixed routes are limiting people.",
-      "Bus subsidies above the mobility threshold constrain travel. Consider reducing bus spend.",
-      "People are being pushed onto buses when they'd prefer flexible travel.",
-      "Strategic mismatch: the city is already mobile, so high subsidies are actually hurting."
     ],
     budgetWarning: [
       "Budget running thin. Raise the Uber tax to generate revenue — it's your only income stream.",
@@ -159,16 +149,16 @@ const ADVISOR = {
   },
   tooltips: {
     happiness: "Overall citizen satisfaction. Goes up with mobility, down with congestion and budget stress. Final score averages this across 12 months.",
-    mobility: "How much citizens are moving. Uber tax reduces it — but not linearly. Low tax has little effect; above 60% it causes sharp drops. Bus helps when < 50, hurts when > 50.",
-    congestion: "Road congestion. AV arrival boosted it in January–February. Uber tax reduces it (fewer cars). Bus subsidy also reduces it. Research: pricing Uber up shifts riders to shared transport.",
+    mobility: "How much citizens are moving. Uber tax reduces it slightly (Ubers give low mobility gain). Bus subsidies raise it directly — buses are the main mobility lever.",
+    congestion: "Road congestion. AV arrival boosted it in January–February. Uber tax reduces it significantly (fewer cars). Bus subsidy reduces it slightly. Research: pricing Uber up shifts riders to shared transport.",
     budget: "Remaining annual budget ($12M). Bus subsidies cost money. Uber tax earns money. Net change each month can be positive or negative.",
-    uberTax: "Tax on every Uber/AV trip. Earns revenue + cuts congestion — but non-linearly reduces mobility. Gentle below 30%, steep 30–60%, punishing above 60%. Locked for January and February.",
-    busSubsidy: "Discount on bus fares. Costs budget. Boosts mobility when city is under-mobile (<50). Constrains mobility when already mobile (>50). Always reduces congestion.",
+    uberTax: "Tax on every Uber/AV trip. Earns revenue + cuts congestion significantly. Reduces mobility only slightly — Ubers are a congestion lever, not a mobility lever. Locked for January and February.",
+    busSubsidy: "Discount on bus fares. Costs budget. Directly boosts mobility — buses are the key mobility lever. Also reduces congestion slightly.",
   },
 };
 
 const DEBRIEF = {
-  coreInsight: "Economists Christensen & Osman (Cairo, 2025) found that a 50% Uber price cut increased total mobility ~49.5% but raised low-occupancy vehicle trips ~60% and congestion ~20%. Critically the effect is non-linear — moderate price changes shift behaviour little, but large changes cause sharp mode-switching. This is why low tax felt gentle and high tax felt brutal.",
+  coreInsight: "Economists Christensen & Osman (Cairo, 2025) found that a 50% Uber price cut increased total mobility ~49.5% but raised low-occupancy vehicle trips ~60% and congestion ~20%. Uber is a high-congestion, low-mobility-gain lever — taxing it cuts congestion significantly while buses, not Ubers, are the primary way to boost mobility.",
   congestionInsight: "High Uber usage pushed external costs up. In Cairo, a 50% Uber price drop would increase congestion, emissions and accident costs by ~0.7% of the city's GDP. Pricing Uber up is one of the few levers that simultaneously cuts congestion and raises public revenue.",
   mobilityInsight: "Heavy Uber tax without a strong bus alternative leaves people stranded. Research shows enormous latent demand — welfare gains from a 50% Uber price cut equalled ~17% of the average Cairo participant's monthly income. Tax too hard, and that welfare disappears.",
   balanceInsight: "You found the balance: moderate Uber tax funding a meaningful bus subsidy. This is the real-world policy prescription — use ride-hailing taxes to cross-subsidize public transport.",
@@ -209,21 +199,19 @@ const CITY_INTRO_SLIDES = [
 //  SIMULATION ENGINE
 // ============================================================
 
-// Linear Uber mobility loss
+// Linear Uber mobility loss — small rate (Ubers give low mobility gain)
 function uberMobilityLoss(tax) {
-  return tax * 0.40;
+  return tax * 0.15;
 }
 
 // roundIndex is used to apply the AV congestion boost in January and February
 function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
   const { baseline, uber, bus, happiness } = SIMULATION;
 
-  // 1. Mobility — linear Uber loss, bus flip mechanic
+  // 1. Mobility — linear Uber loss, linear bus gain
   const uberLoss = uberMobilityLoss(uberTax);
   const mobilityBeforeBus = baseline.mobilityScore - uberLoss;
-  const busEffect = mobilityBeforeBus < bus.mobilityFlipPoint
-    ? busSubsidy * bus.mobilityGainPerPercentBelowFlip
-    : busSubsidy * -bus.mobilityLossPerPercentAboveFlip;
+  const busEffect = busSubsidy * bus.mobilityGainPerPercent;
   const mobilityScore = Math.min(100, Math.max(0, mobilityBeforeBus + busEffect));
 
   // 2. Congestion — AV boost for first two months (January, February)
@@ -255,9 +243,8 @@ function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
     - budgetStress * 25 * happiness.budgetStressWeight
   ));
 
-  const busIsConstraining = mobilityBeforeBus >= bus.mobilityFlipPoint && busSubsidy > 0;
+  const busIsConstraining = false; // flip mechanic removed — bus always boosts
   const revenuePositive = monthlyDelta > 0;
-  const taxZone = uberTax <= 30 ? "gentle" : uberTax <= 60 ? "steep" : "cliff";
 
   const hMob = mobilityGain * happiness.mobilityWeight;
   const hCong = -congestionPain * happiness.congestionWeight;
@@ -265,7 +252,7 @@ function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
 
   return {
     mobilityScore, congestionLevel, happinessScore, monthlyDelta, uberRevenue, busCost, budgetStress,
-    busIsConstraining, revenuePositive, taxZone,
+    busIsConstraining, revenuePositive,
     mobilityBreakdown: [
       { label: "Bus Boost", value: busEffect, color: C.green },
       { label: "Uber Loss", value: -uberLoss, color: C.red }
@@ -296,8 +283,8 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "🚕", color: C.red, bg: C.redBg, border: C.redBorder,
       title: "Uber tax crushed mobility",
-      body: `Your average Uber tax (from March onwards) was ${Math.round(avgU)}% — well past the 60% cliff where mobility drops sharply. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). The fix: stay in the 30–50% sweet spot to earn revenue without triggering the cliff.`,
-      research: "Cairo study: moderate price changes have little mobility effect. Large changes cause sharp substitution — the non-linear zone you hit.",
+      body: `Your average Uber tax (from March onwards) was ${Math.round(avgU)}%. High Uber tax reduces mobility — pair it with a strong bus subsidy to keep people moving. Worst month: ${MONTHS[worst.idx]} (happiness ${Math.round(worst.happinessScore)}). The fix: moderate Uber tax funding a generous bus subsidy.`,
+      research: "Cairo study: Uber price increases reduce mobility, especially for lower-income riders. Reinvesting tax revenue into bus subsidies is the key to keeping the city moving.",
     });
   }
   if (avgC > 65 && avgU < 25) {
@@ -312,7 +299,7 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "🚌", color: C.blue, bg: C.blueBg, border: C.blueBorder,
       title: "Bus subsidies drained the treasury",
-      body: `Average bus subsidy was ${Math.round(avgB)}% — too high for your tax revenue. Budget ended at $${finalBudget.toFixed(1)}M. Bus subsidies always cost money; above the mobility flip they cost money AND reduce mobility.`,
+      body: `Average bus subsidy was ${Math.round(avgB)}% — too high for your tax revenue. Budget ended at $${finalBudget.toFixed(1)}M. Bus subsidies always cost money; make sure Uber tax revenue covers the spend.`,
       research: "Transport subsidies scale with ridership. Cheaper rides attract more riders, raising the total bill. Calibrate bus spend against Uber tax revenue.",
     });
   }
@@ -334,8 +321,6 @@ function getMonthEndMessage(stats, uberTax, bus, budgetFraction, timedOut) {
   if (timedOut) return pickRandom(r.timedOut);
   if (uberTax === 0 && bus === 0) return pickRandom(r.noPolicy);
   if (budgetFraction < BUDGET_CONFIG.warningFraction) return pickRandom(r.budgetWarning);
-  
-  if (stats.busIsConstraining && bus > 40) return pickRandom(r.busConstraining);
   
   const t = SIMULATION.thresholds;
   if (stats.happinessScore >= t.happiness.good) return pickRandom(r.highHappiness);
@@ -429,12 +414,11 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown, target, prev,
   );
 }
 
-function BusModeBadge({ mobilityBeforeBus, busSubsidy }) {
+function BusModeBadge({ busSubsidy }) {
   if (busSubsidy === 0) return null;
-  const boosting = mobilityBeforeBus < SIMULATION.bus.mobilityFlipPoint;
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: boosting ? C.greenBg : C.redBg, border: `1px solid ${boosting ? C.greenBorder : C.redBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: boosting ? C.green : C.red, marginBottom: 5 }}>
-      {boosting ? "🟢 Boosting mobility" : "🔴 Constraining mobility"}
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 5 }}>
+      🟢 Boosting mobility
     </div>
   );
 }
@@ -466,11 +450,10 @@ function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badg
 }
 
 function TaxZoneWarning({ tax }) {
-  if (tax <= 30) return null;
-  const steep = tax <= 60;
+  if (tax < 50) return null;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, background: steep ? C.amberBg : C.redBg, border: `1px solid ${steep ? C.amberBorder : C.redBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: steep ? C.amber : C.red, marginTop: 4 }}>
-      {steep ? "⚠️ Steep zone — mobility dropping noticeably" : "🔴 Cliff — mobility falling sharply past 60%"}
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, color: C.amber, marginTop: 4 }}>
+      ⚠️ High tax — Uber usage falling, boost bus subsidy to maintain mobility
     </div>
   );
 }
@@ -589,23 +572,18 @@ function StructuralBanner({ items }) {
 
 function computeWarnings(uberTax, busSubsidy, live, budgetFraction) {
   const w = [];
-  if (uberTax > 60) w.push("Tax above 60% — mobility drops sharply (cliff zone).");
-  if (uberTax > 30 && uberTax <= 60) w.push("Tax in steep zone (30–60%) — women and poor riders absorb more of the hit.");
+  if (uberTax > 60 && busSubsidy < 30) w.push("High Uber tax without bus subsidy — mobility will drop. Raise bus subsidy.");
   if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget is draining.");
-  if (busSubsidy > 60 && live.mobilityScore > 60) w.push("High subsidy with high mobility — buses may be constraining, not helping.");
   return w;
 }
 
 function generateChangeSummary(stats, prevStats, uberTax, busSubsidy) {
   const lines = [];
   if (uberTax > 0) {
-    if (uberTax > 60) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% raised revenue but pushed mobility into cliff-zone drop.` });
-    else if (uberTax > 30) lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue with a moderate mobility cost.` });
-    else lines.push({ icon: "💰", text: `Low Uber tax (${uberTax}%) had minimal effect on mobility and moderate revenue.` });
+    lines.push({ icon: "💰", text: `Uber tax at ${uberTax}% generated revenue and cut congestion${uberTax > 60 ? " — raise bus subsidy to offset mobility loss" : ""}.` });
   }
   if (busSubsidy > 0) {
-    if (stats.busIsConstraining) lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) hit the ridership ceiling — spending budget without adding mobility.` });
-    else lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) supported mobility and reduced congestion.` });
+    lines.push({ icon: "🚌", text: `Bus subsidy (${busSubsidy}%) boosted mobility and reduced congestion.` });
   }
   if (stats.monthlyDelta < 0) lines.push({ icon: "📉", text: `Budget fell by $${Math.abs(stats.monthlyDelta).toFixed(1)}M — costs outpaced Uber revenue.` });
   else lines.push({ icon: "📈", text: `Budget grew by $${stats.monthlyDelta.toFixed(1)}M — revenue covered costs.` });
@@ -748,8 +726,8 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             label="Bus Fare Subsidy" value={busSubsidy} onChange={onBusChange} color={C.busColor}
             tooltip={ADVISOR.tooltips.busSubsidy} locked={locked}
             tag={{ text: "costs $", bg: C.redBg, color: C.red, border: C.redBorder }}
-            badge={<BusModeBadge mobilityBeforeBus={mobilityB4Bus} busSubsidy={busSubsidy} />}
-            hint="Boosts mobility when city is under-served · less effective above mobility 65"
+            badge={<BusModeBadge busSubsidy={busSubsidy} />}
+            hint="Directly boosts mobility · funds bus service · always reduces congestion slightly"
           />
           <BudgetDeltaPreview delta={live.monthlyDelta} />
 
