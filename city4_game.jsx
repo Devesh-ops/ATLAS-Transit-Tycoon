@@ -214,7 +214,7 @@ const ADVISOR = {
     revenueGain: ["Budget grew — tax revenue covers both cost streams. This is the self-funding model working.", "Positive budget month. Keep this balance and equity will follow."],
     balanced: ["Steady policy. City moving, gaps visible but contained, budget stable.", "Three levers calibrated. Compound this over the year."],
     noPolicy: ["No levers engaged. Buses cold, unsubsidised. Women and the poor bear the full cost.", "Laissez-faire month. Both gaps — income and gender — widen without intervention."],
-    busConstraining: ["Bus subsidies are maxed out, but mobility is stalling. Riders are hitting the bus capacity limit — try lowering the subsidy to save budget.", "Max bus subsidies have hit the ridership ceiling. You're spending budget without gaining more mobility. Consider reinvesting into AC instead."],
+    highBusSubsidy: ["High bus subsidy is boosting mobility — especially for poor men. Women's uptake is still limited by the structural safety barrier, not price.", "Bus subsidies are working well for most groups. The gender gap persists regardless of price — it reflects a safety problem that fare discounts can't fully fix."],
     timedOut: ["Time ran out. In extreme months, set AC first — then tax and subsidy.", "The clock beat you. Hit End Turn earlier next month."],
   },
   tooltips: {

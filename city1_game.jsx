@@ -88,7 +88,7 @@ const ADVISOR = {
     "February — congestion is still rising unchecked. The Uber tax unlocks next month. Use buses if you want, but the real fix is coming.",
     "March — your Uber tax is now unlocked! Even a modest tax earns revenue AND cuts congestion. This is the moment to start pushing back.",
     "Watch the balance: high Uber tax = good revenue + less congestion, but mobility drops.",
-    "Bus subsidies are most effective when mobility is below 50. Above that, fixed routes constrain travel.",
+    "Bus subsidies steadily boost mobility and slightly reduce congestion — the more you invest, the more people move.",
     "Try funding your bus subsidy entirely from Uber tax revenue. Can you break even?",
     "Almost halfway. Is your budget growing, shrinking, or flat?",
     "Mid-year check. Uber tax revenue compounds — consistent policy beats erratic swings.",

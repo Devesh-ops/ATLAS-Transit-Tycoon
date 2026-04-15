@@ -469,7 +469,7 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown, target, prev,
 function BusModeBadge({ busSubsidy }) {
   if (busSubsidy === 0) return null;
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: boosting ? C.greenBg : C.redBg, border: `1px solid ${boosting ? C.greenBorder : C.redBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: boosting ? C.green : C.red, marginBottom: 5 }}>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 5 }}>
       🟢 Boosting mobility
     </div>
   );

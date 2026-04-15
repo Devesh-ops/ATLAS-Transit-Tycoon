@@ -239,8 +239,9 @@ const VEHICLE_KEYFRAMES = `
 // ─────────────────────────────────────────────────────────────
 //  CAR
 // ─────────────────────────────────────────────────────────────
-function Car({ delay, duration, color, visible, yOffset, laneH }) {
+function Car({ delay, duration, color, visible, yOffset, laneH, direction = "right" }) {
   const top = Math.round(laneH / 2 - 7 + yOffset);
+  const anim = direction === "left" ? "crs-driveLeft" : "crs-driveRight";
   return (
     <div style={{
       position: "absolute",
@@ -250,7 +251,7 @@ function Car({ delay, duration, color, visible, yOffset, laneH }) {
       borderRadius: 3,
       opacity: visible ? 1 : 0,
       transition: "opacity 0.5s",
-      animation: `crs-driveRight ${duration}s ${delay}s linear infinite`,
+      animation: `${anim} ${duration}s ${delay}s linear infinite`,
       zIndex: 2,
       willChange: "left",
     }}>
@@ -265,8 +266,9 @@ function Car({ delay, duration, color, visible, yOffset, laneH }) {
 // ─────────────────────────────────────────────────────────────
 //  BUS
 // ─────────────────────────────────────────────────────────────
-function Bus({ delay, duration, visible, yOffset, laneH }) {
+function Bus({ delay, duration, visible, yOffset, laneH, direction = "left" }) {
   const top = Math.round(laneH / 2 - 10 + yOffset);
+  const anim = direction === "right" ? "crs-driveRight" : "crs-driveLeft";
   return (
     <div style={{
       position: "absolute",
@@ -276,7 +278,7 @@ function Bus({ delay, duration, visible, yOffset, laneH }) {
       borderRadius: 3,
       opacity: visible ? 1 : 0,
       transition: "opacity 0.5s",
-      animation: `crs-driveLeft ${duration}s ${delay}s linear infinite`,
+      animation: `${anim} ${duration}s ${delay}s linear infinite`,
       zIndex: 2,
       willChange: "left",
     }}>
@@ -338,13 +340,14 @@ function CityRoad({ cfg, uberTax, busSubsidy, congestion }) {
             duration={bus.baseDuration * (slowFactor * 0.72)}
             visible={bi < activeBuses}
             yOffset={bus.yOffset}
-            laneH={laneH} />
+            laneH={laneH}
+            direction="right" />
         ))}
       </div>
     );
   };
 
-  // Lower half lanes: mostly buses (←) + some cars (→) — mixed traffic both sides
+  // Lower half lanes: mostly buses (←) + some cars (←) — all traffic going left
   const renderLowerLane = (li) => {
     const carPool = lanes === 1 ? CAR_POOL : CAR_POOL.filter(c => c.laneSlot === li % 2);
     const busPool = lanes === 1 ? BUS_POOL : BUS_POOL.filter(b => b.laneSlot === li % 2);
@@ -363,7 +366,8 @@ function CityRoad({ cfg, uberTax, busSubsidy, congestion }) {
             color={car.color}
             visible={ci < activeCars}
             yOffset={car.yOffset}
-            laneH={laneH} />
+            laneH={laneH}
+            direction="left" />
         ))}
         {busPool.map((bus, bi) => (
           <Bus key={bus.id}
