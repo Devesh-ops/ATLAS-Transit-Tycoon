@@ -514,7 +514,7 @@ function SplitGauge({ poorVal, richVal, tooltip, label = "Mobility Split", type 
   );
 }
 
-/function BusModeBadge({ busSubsidy }) {
+function BusModeBadge({ busSubsidy }) {
   if (busSubsidy === 0) return null;
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 6, padding: "3px 8px", fontSize: 10, fontWeight: 700, color: C.green, marginBottom: 5 }}>
