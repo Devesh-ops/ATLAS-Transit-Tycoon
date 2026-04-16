@@ -397,26 +397,101 @@ function getGrade(score) {
   return SCORING.grades.find(g => score >= g.min) || SCORING.grades[SCORING.grades.length - 1];
 }
 
+function getNextGrade(score) {
+  const sorted = [...SCORING.grades].sort((a, b) => a.min - b.min);
+  return sorted.find(g => g.min > score) || null;
+}
+
 function calculateProjection(history, currentBudget) {
   const monthsElapsed = history.length || 0;
-  if (monthsElapsed === 0) return { score: 50, grade: getGrade(50) };
+  if (monthsElapsed === 0) {
+    const score = 50;
+    const grade = getGrade(score);
+    const next = getNextGrade(score);
+    return {
+      score,
+      grade,
+      breakdown: [
+        { key: "happiness", label: "Happiness", points: 50, color: gc(50, "happiness") },
+        { key: "budget", label: "Budget", points: 0, color: gc(0.5, "budget") },
+      ],
+      nextGrade: next,
+      pointsToNext: next ? Math.max(0, Math.ceil(next.min - score)) : 0,
+    };
+  }
   const avgHappiness = history.reduce((s, h) => s + h.happinessScore, 0) / monthsElapsed;
   const avgDelta = (currentBudget - BUDGET_CONFIG.annualBudget) / monthsElapsed;
   const projectedBudgetFrac = Math.max(0, currentBudget + (avgDelta * (12 - monthsElapsed))) / BUDGET_CONFIG.annualBudget;
-  const projectedScore = avgHappiness + (projectedBudgetFrac * BUDGET_CONFIG.budgetBonusWeight * 100);
-  return { score: projectedScore, grade: getGrade(projectedScore) };
+  const budgetPoints = Math.max(0, projectedBudgetFrac * 100 * BUDGET_CONFIG.budgetBonusWeight);
+  const projectedScore = avgHappiness + budgetPoints;
+  const grade = getGrade(projectedScore);
+  const next = getNextGrade(projectedScore);
+  return {
+    score: projectedScore,
+    grade,
+    breakdown: [
+      { key: "happiness", label: "Happiness", points: avgHappiness, color: gc(avgHappiness, "happiness") },
+      { key: "budget", label: "Budget", points: budgetPoints, color: gc(projectedBudgetFrac, "budget") },
+    ],
+    nextGrade: next,
+    pointsToNext: next ? Math.max(0, Math.ceil(next.min - projectedScore)) : 0,
+  };
 }
 
 function PerformanceHeader({ projection, goalGrade = "B" }) {
   return (
-    <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
-        <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
-          {projection.grade.grade}
+    <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}` }}>
+      <div style={{ padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
+          <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
+            {projection.grade.grade}
+          </div>
+          <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score {Math.round(projection.score)}/100</div>
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade} or above to Advance</div>
+      </div>
+
+      <div style={{ padding: "0 16px 12px" }}>
+        <div style={{ background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px" }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+            Score Breakdown
+          </div>
+
+          <div style={{ height: 8, background: C.track, borderRadius: 5, overflow: "hidden", display: "flex", marginBottom: 8 }}>
+            {projection.breakdown.map((b) => (
+              <div key={b.key} style={{ width: `${Math.max(0, Math.min(100, (b.points / Math.max(1, projection.score)) * 100))}%`, background: b.color }} />
+            ))}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 6, columnGap: 10 }}>
+            {projection.breakdown.map((b) => (
+              <div key={b.key} style={{ display: "contents" }}>
+                <div style={{ fontSize: 12, color: C.textSub, fontWeight: 700 }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: b.color, marginRight: 8, verticalAlign: "middle" }} />
+                  {b.label}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: b.color, fontVariantNumeric: "tabular-nums" }}>
+                  +{Math.max(0, b.points).toFixed(0)}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>
+              Total: <span style={{ color: C.textSub, fontWeight: 900 }}>{Math.round(projection.score)}</span>
+            </div>
+            {projection.nextGrade ? (
+              <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>
+                {projection.pointsToNext} pts to <span style={{ color: projection.nextGrade.color, fontWeight: 900 }}>{projection.nextGrade.grade}</span>
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>Top grade</div>
+            )}
+          </div>
         </div>
       </div>
-      <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade} or above to Advance</div>
     </div>
   );
 }
@@ -760,7 +835,9 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
   const budgetColor = gc(budgetFraction, "budget");
   const seasonIcon = SEASONS.seasonIcon[roundIndex];
   const warnings = computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction);
-  const projection = calculateProjection(history, budgetRemaining);
+  const projectedBudgetAfter = Math.max(0, +(budgetRemaining + live.monthlyDelta).toFixed(3));
+  const projectedHistory = [...history, { happinessScore: live.happinessScore }];
+  const projection = calculateProjection(projectedHistory, projectedBudgetAfter);
 
   return (
     <div style={{
