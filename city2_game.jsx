@@ -27,11 +27,11 @@ const CITY_META = {
   name: "Riverdale",
   subtitle: "A city learning to cope with changing seasons",
   population: 200000,
-  intro: `Riverdale has 200,000 people. Smallville was just the beginning. The seasons here hit hard — heatwaves and cold snaps drive people off buses and into Ubers, spiking congestion. You have $30M for the year and three levers: tax Uber (earns revenue, cuts congestion), subsidize buses (costs money, keeps people moving), and invest in bus AC & heating (costs money, keeps buses comfortable year-round). When weather is extreme and buses are uncomfortable, bus subsidies alone won't help. Plan for the seasons.`,
+  intro: `Riverdale has 200,000 people. Smallville was just the beginning. The seasons here hit hard — heatwaves and cold snaps drive people off buses and into Ubers, spiking congestion. You have $30M for the year and three sliders: tax Uber (earns revenue, cuts congestion), subsidize buses (costs money, keeps people moving), and invest in bus AC & heating (costs money, keeps buses comfortable year-round). When weather is extreme and buses are uncomfortable, bus subsidies alone won't help. Plan for the seasons.`,
 };
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const TIMER = { monthDuration: 25, warningAt: 6, endingDuration: 1200 };
+const TIMER = { monthDuration: 40, warningAt: 8, endingDuration: 1200 };
 
 const SEASONS = {
   // -1.0 = peak cold, 0 = mild, +1.0 = peak heat
@@ -95,7 +95,7 @@ const SCORING = {
 
 const ADVISOR = {
   name: "Maya", title: "Chief Transport Advisor",
-  gameIntro: `Welcome to Riverdale — bigger city, bigger weather swings. In July and January, buses empty out unless they're climate-controlled. Your third lever — Bus AC & Heating — costs money but keeps buses attractive year-round. Without it, even a generous bus subsidy fails in extreme months. Use Uber tax revenue to fund both bus subsidies and AC. 25 seconds per month.`,
+  gameIntro: `Welcome to Riverdale — bigger city, bigger weather swings. In July and January, buses empty out unless they're climate-controlled. Your third slider — Bus AC & Heating — costs money but keeps buses attractive year-round. Without it, even a generous bus subsidy fails in extreme months. Use Uber tax revenue to fund both bus subsidies and AC. 25 seconds per month.`,
   monthStartHints: [
     "January 🥶 — Deep winter. Buses are freezing. Low AC means riders switch to Uber — congestion up. Plan your AC investment carefully.",
     "Still cold. Cold buses hit mobility hard. If AC is low, the bus subsidy isn't helping much — riders avoid buses regardless of price.",
@@ -126,7 +126,7 @@ const ADVISOR = {
     ],
     coldNeedingAC: [
       "Cold buses + low AC = empty buses. Riders take Uber instead — congestion rises.",
-      "Winter without bus heating hurts. AC is your most important lever in extreme months.",
+      "Winter without bus heating hurts. AC is your most important slider in extreme months.",
       "Low-income riders can't afford both: a taxed Uber AND a cold bus. Heating is the solution.",
       "Buses are freezing. We need to reinvest tax revenue into better climate control."
     ],
@@ -172,11 +172,11 @@ const ADVISOR = {
   },
   tooltips: {
     happiness: "Overall citizen satisfaction. Driven by mobility, congestion, and budget stress. Extreme weather months can drag this down sharply without AC.",
-    mobility: "How much citizens are moving. Uber tax reduces it slightly. Bus subsidies raise it directly — buses are the main mobility lever. Weather penalty reduces it — AC mitigates this.",
+    mobility: "How much citizens are moving. Uber tax reduces it slightly. Bus subsidies raise it directly — buses are the main mobility slider. Weather penalty reduces it — AC mitigates this.",
     congestion: "Road congestion. Uber tax reduces it. Bus subsidy reduces it. Extreme weather boosts Uber demand and raises congestion without AC.",
     budget: "Remaining budget ($30M). Uber tax earns money. Bus subsidies and AC cost money. AC costs scale with weather severity.",
-    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion significantly. Reduces mobility only slightly — Ubers are a congestion lever, not a mobility lever.",
-    busSubsidy: "Discount on bus fares. Directly boosts mobility — buses are the key mobility lever. Reduces congestion slightly. Costs budget. In extreme weather, low AC limits its effect — people avoid buses regardless of price.",
+    uberTax: "Tax on every Uber trip. Earns revenue + cuts congestion significantly. Reduces mobility only slightly — Ubers are a congestion slider, not a mobility slider.",
+    busSubsidy: "Discount on bus fares. Directly boosts mobility — buses are the key mobility slider. Reduces congestion slightly. Costs budget. In extreme weather, low AC limits its effect — people avoid buses regardless of price.",
     acLevel: "Bus climate control. At 0%, extreme weather empties buses — dropping mobility sharply. At 100%, buses stay attractive year-round. Costs scale with temperature extremity. Below 25% in extreme weather triggers a collapse.",
   },
 };
@@ -263,9 +263,11 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   // ── BUDGET ───────────────────────────────────────────────────
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
   const budgetStress = budgetFraction > 0.5 ? 0 : (0.5 - budgetFraction) / 0.5;
-  const activity = (mobilityScore + congestionLevel) / 2;
-  const uberRevenue = (uberTax / 100) * uber.revenueRate * activity * 200;
-  const busCost = (busSubsidy / 100) * bus.costRate * activity * 200;
+  const uberEffect = -uberTax * uber.congestionReductionPerPercent;
+  const busCongestionEffect = -busSubsidy * bus.congestionOffsetPerPercent;
+  const weatherEffect = weatherUberBoost * 0.2;
+  const uberRevenue = (uberTax / 100) * uber.revenueRate * congestionLevel * 200;
+  const busCost = (busSubsidy / 100) * bus.costRate * mobilityScore * 200;
   const acCost = (acLevel / 100) * SIMULATION.ac.costRate * (0.2 + tempDiscomfort * 0.8) * 200;
   const monthlyDelta = +(uberRevenue - busCost - acCost).toFixed(3);
 
@@ -292,11 +294,19 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
     budgetStress, busIsConstraining, weatherAlert, collapseActive,
     tempDiscomfort, tempIndex: ti, mobilityBeforeBus,
     mobilityBreakdown: [
-      { label: "Bus Boost", value: busEffect, color: C.green },
-      { label: "Weather", value: -busTempPenalty, color: C.blue },
-      { label: "Uber Loss", value: -uberLoss, color: C.red }
+      { label: "Base", value: baseline.mobilityScore },
+      { label: "Uber Tax", value: -uberLoss, color: C.uberColor },
+      { label: "Bus Mode Shift", value: busEffect, color: C.busColor },
+      { label: "Weather", value: -busTempPenalty, color: C.blue }
+    ],
+    congestionBreakdown: [
+      { label: "Base", value: baseline.congestionLevel },
+      { label: "Uber Tax", value: uberEffect, color: C.uberColor },
+      { label: "Bus Mode Shift", value: busCongestionEffect, color: C.busColor },
+      { label: "Weather", value: weatherEffect, color: C.amber }
     ],
     happinessBreakdown: [
+      { label: "Base", value: baseline.happinessScore },
       { label: "Mobility", value: hMob, color: C.blue },
       { label: "Congestion", value: hCong, color: C.amber },
       { label: "Budget", value: hBudg, color: C.red }
@@ -385,6 +395,30 @@ function getMonthEndMessage(stats, uberTax, bus, ac, budgetFraction, timedOut, r
 
 function getGrade(score) {
   return SCORING.grades.find(g => score >= g.min) || SCORING.grades[SCORING.grades.length - 1];
+}
+
+function calculateProjection(history, currentBudget) {
+  const monthsElapsed = history.length || 0;
+  if (monthsElapsed === 0) return { score: 50, grade: getGrade(50) };
+  const avgHappiness = history.reduce((s, h) => s + h.happinessScore, 0) / monthsElapsed;
+  const avgDelta = (currentBudget - BUDGET_CONFIG.annualBudget) / monthsElapsed;
+  const projectedBudgetFrac = Math.max(0, currentBudget + (avgDelta * (12 - monthsElapsed))) / BUDGET_CONFIG.annualBudget;
+  const projectedScore = avgHappiness + (projectedBudgetFrac * BUDGET_CONFIG.budgetBonusWeight * 100);
+  return { score: projectedScore, grade: getGrade(projectedScore) };
+}
+
+function PerformanceHeader({ projection, goalGrade = "B" }) {
+  return (
+    <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
+        <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
+          {projection.grade.grade}
+        </div>
+      </div>
+      <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade} or above to Advance</div>
+    </div>
+  );
 }
 
 function gc(value, type) {
@@ -692,7 +726,7 @@ function IntroScreen({ onStart }) {
   );
 }
 
-function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUberChange, onBusChange, onACChange, onCommit, budgetRemaining }) {
+function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUberChange, onBusChange, onACChange, onCommit, budgetRemaining, history }) {
   const [timeLeft, setTimeLeft] = useState(TIMER.monthDuration);
   const [locked, setLocked] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -726,6 +760,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
   const budgetColor = gc(budgetFraction, "budget");
   const seasonIcon = SEASONS.seasonIcon[roundIndex];
   const warnings = computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction);
+  const projection = calculateProjection(history, budgetRemaining);
 
   return (
     <div style={{
@@ -734,6 +769,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel, onUbe
       outline: warn ? `3px solid ${C.red}` : "3px solid transparent",
       outlineOffset: "-3px", transition: "outline 0.3s",
     }}>
+      <PerformanceHeader projection={projection} />
       {ending && <MonthEndingOverlay month={month} />}
 
       {/* ── TOP BAR ─────────────────────────────────────────── */}
@@ -888,10 +924,12 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
   const isLast = roundIndex === 11;
   const pos = monthlyDelta >= 0;
+  const projection = calculateProjection(history, budgetRemaining);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", padding: "14px" }}>
-      <div style={{ maxWidth: 600, margin: "0 auto" }}>
+    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif" }}>
+      <PerformanceHeader projection={projection} />
+      <div style={{ maxWidth: 600, margin: "0 auto", padding: "14px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div>
             <div style={{ fontSize: 9, letterSpacing: 3, color: C.green, textTransform: "uppercase", fontWeight: 800 }}>Month Complete</div>
@@ -989,7 +1027,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel, 
   );
 }
 
-function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
+function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }) {
   const avgH = history.reduce((s, m) => s + m.happinessScore, 0) / history.length;
   const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / history.length;
   const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / history.length;
@@ -1122,7 +1160,16 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
           <div style={{ fontSize: 9, color: C.textFaint, marginTop: 10 }}>{DEBRIEF.source}</div>
         </div>
 
-        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>↺ Play Again</button>
+        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>↺ Play Again</button>
+        {grade.min >= 65 ? (
+          <button onClick={onAdvance} style={{ width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+            Next City: Gilded Hollow →
+          </button>
+        ) : (
+          <div style={{ background: C.redBg, color: C.red, padding: "12px", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight: 700 }}>
+            🔒 Achieve Grade B or higher to unlock Gilded Hollow
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1131,7 +1178,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless }) {
 // ============================================================
 //  MAIN GAME CONTROLLER
 // ============================================================
-export default function RiverdaleTycoonCity2() {
+export default function RiverdaleTycoonCity2({ onAdvance }) {
   const [screen, setScreen] = useState("intro");
   const [roundIndex, setRound] = useState(0);
   const [uberTax, setUber] = useState(0);
@@ -1194,7 +1241,7 @@ export default function RiverdaleTycoonCity2() {
     <PlanningScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
       uberTax={uberTax} busSubsidy={busSubsidy} acLevel={acLevel}
       onUberChange={setUber} onBusChange={setBus} onACChange={setAC}
-      onCommit={handleCommit} budgetRemaining={budget} />
+      onCommit={handleCommit} budgetRemaining={budget} history={history} />
   );
   if (screen === "result") return (
     <ResultScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
@@ -1202,5 +1249,5 @@ export default function RiverdaleTycoonCity2() {
       advisorMessage={advisorMsg} onNext={handleNext}
       history={history} timedOut={timedOut} budgetRemaining={budget} />
   );
-  if (screen === "yearEnd") return <YearEndScreen history={history} finalBudget={budget} onRestart={handleRestart} scoreless={scoreless} />;
+  if (screen === "yearEnd") return <YearEndScreen history={history} finalBudget={budget} onRestart={handleRestart} scoreless={scoreless} onAdvance={onAdvance} />;
 }
