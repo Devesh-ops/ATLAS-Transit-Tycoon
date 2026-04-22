@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import CityIntroFlow from "./CityIntro.jsx";
 import CityRoadScene from "./CityRoadScene.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -384,57 +385,35 @@ function calculateProjection(history, currentBudget) {
 
 function PerformanceHeader({ projection, goalGrade = "B" }) {
   return (
-    <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
-          <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
-            {projection.grade.grade}
-          </div>
-          <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score {Math.round(projection.score)}/100</div>
+    <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+      {/* Row 1: grade badge + score + pts to next + goal */}
+      <div style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
+        <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
+          {projection.grade.grade}
         </div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade} or above to Advance</div>
+        <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score {Math.round(projection.score)}/100</div>
+        {projection.nextGrade ? (
+          <div style={{ fontSize: 11, color: C.textFaint }}>· {projection.pointsToNext} pts to <span style={{ color: projection.nextGrade.color, fontWeight: 800 }}>{projection.nextGrade.grade}</span></div>
+        ) : (
+          <div style={{ fontSize: 11, color: C.textFaint }}>· Top grade</div>
+        )}
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade}+ to Advance</div>
       </div>
-
-      <div style={{ padding: "0 16px 12px" }}>
-        <div style={{ background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Score Breakdown
-          </div>
-
-          <div style={{ height: 8, background: C.track, borderRadius: 5, overflow: "hidden", display: "flex", marginBottom: 8 }}>
-            {projection.breakdown.map((b) => (
-              <div key={b.key} style={{ width: `${Math.max(0, Math.min(100, (b.points / Math.max(1, projection.score)) * 100))}%`, background: b.color }} />
-            ))}
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 6, columnGap: 10 }}>
-            {projection.breakdown.map((b) => (
-              <div key={b.key} style={{ display: "contents" }}>
-                <div style={{ fontSize: 12, color: C.textSub, fontWeight: 700 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: b.color, marginRight: 8, verticalAlign: "middle" }} />
-                  {b.label}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: b.color, fontVariantNumeric: "tabular-nums" }}>
-                  +{Math.max(0, b.points).toFixed(0)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>
-              Total: <span style={{ color: C.textSub, fontWeight: 900 }}>{Math.round(projection.score)}</span>
-            </div>
-            {projection.nextGrade ? (
-              <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>
-                {projection.pointsToNext} pts to <span style={{ color: projection.nextGrade.color, fontWeight: 900 }}>{projection.nextGrade.grade}</span>
-              </div>
-            ) : (
-              <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>Top grade</div>
-            )}
-          </div>
+      {/* Row 2: segmented bar + component breakdown */}
+      <div style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
+          {projection.breakdown.map((b) => (
+            <div key={b.key} style={{ width: `${Math.max(0, Math.min(100, (b.points / Math.max(1, projection.score)) * 100))}%`, background: b.color, transition: "width 0.4s" }} />
+          ))}
         </div>
+        {projection.breakdown.map((b) => (
+          <div key={b.key} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: b.color }} />
+            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>{b.label} <span style={{ color: b.color }}>+{Math.max(0, b.points).toFixed(0)}</span></span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -463,12 +442,25 @@ function gc(value, type) {
 // ============================================================
 function InfoTip({ text }) {
   const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+  const handleEnter = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      const tipW = 220;
+      const wouldOverflow = r.left + tipW > window.innerWidth - 8;
+      const left = wouldOverflow ? Math.max(8, r.right - tipW) : Math.max(8, r.left);
+      setPos({ top: r.bottom + 6, left });
+    }
+    setShow(true);
+  };
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
-      <button onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}
+    <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+      <button ref={btnRef} onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}
         style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: "50%", width: 16, height: 16, cursor: "pointer", color: C.textMuted, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>i</button>
-      {show && (
-        <div style={{ position: "absolute", right: 0, top: 20, width: 220, background: C.text, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 11px", fontSize: 11, color: C.insetBg, zIndex: 300, lineHeight: 1.5, pointerEvents: "none" }}>{text}</div>
+      {show && createPortal(
+        <div style={{ position: "fixed", top: pos.top, left: pos.left, width: 220, background: C.text, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 11px", fontSize: 11, color: C.insetBg, zIndex: 9999, lineHeight: 1.5, pointerEvents: "none" }}>{text}</div>,
+        document.body
       )}
     </div>
   );
@@ -504,12 +496,12 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown, target, prev,
         <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2 }}>{target}</div>
       )}
       {breakdown && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 8px", marginTop: 2 }}>
           {breakdown.map((item, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: item.color }} />
-              <span style={{ fontSize: 9, color: C.textMuted, fontWeight: 600 }}>
-                {item.label}: <span style={{ color: item.value >= 0 ? C.green : C.red }}>{item.value >= 0 ? "+" : ""}{item.value.toFixed(1)}</span>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: item.color || C.textFaint, flexShrink: 0 }} />
+              <span style={{ fontSize: 10, color: C.textMuted, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {item.label}:&nbsp;<span style={{ color: item.value >= 0 ? C.green : C.red, fontWeight: 700 }}>{item.value >= 0 ? "+" : ""}{item.value.toFixed(1)}</span>
               </span>
             </div>
           ))}
@@ -523,14 +515,12 @@ function GaugeBar({ label, value, type, tooltip, extra, breakdown, target, prev,
 function SliderInput({ label, value, onChange, color, tooltip, locked, tag, badge, hint }) {
   return (
     <div style={{ marginBottom: 20, opacity: locked ? 0.5 : 1, transition: "opacity 0.3s" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: locked ? C.border : color }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: locked ? C.textMuted : C.text }}>{label}</span>
-          {tag && <span style={{ fontSize: 9, background: tag.bg, color: tag.color, border: `1px solid ${tag.border}`, borderRadius: 4, padding: "2px 6px", fontWeight: 700 }}>{tag.text}</span>}
-          <InfoTip text={tooltip} />
-        </div>
-        <span style={{ fontSize: 20, fontWeight: 700, color: locked ? C.textMuted : color, fontVariantNumeric: "tabular-nums" }}>{value}%</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: locked ? C.border : color, flexShrink: 0 }} />
+        <span style={{ fontSize: 13, fontWeight: 600, color: locked ? C.textMuted : C.text, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+        {tag && <span style={{ fontSize: 9, background: tag.bg, color: tag.color, border: `1px solid ${tag.border}`, borderRadius: 4, padding: "2px 6px", fontWeight: 700, flexShrink: 0 }}>{tag.text}</span>}
+        <InfoTip text={tooltip} />
+        <span style={{ fontSize: 20, fontWeight: 700, color: locked ? C.textMuted : color, fontVariantNumeric: "tabular-nums", minWidth: 44, textAlign: "right", flexShrink: 0 }}>{value}%</span>
       </div>
       {badge}
       <input type="range" min={0} max={100} step={5} value={value}
@@ -568,9 +558,9 @@ function BudgetDeltaPreview({ delta }) {
 function AdvisorBox({ message }) {
   return (
     <div style={{ background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
-      <span style={{ fontSize: 20 }}>🧑‍💼</span>
-      <div>
-        <div style={{ fontSize: 10, fontWeight: 800, color: C.blue, letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 }}>Maya · Chief Transport Advisor</div>
+      <span style={{ fontSize: 20, flexShrink: 0 }}>🧑‍💼</span>
+      <div style={{ minWidth: 0, overflow: "hidden" }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.blue, letterSpacing: 1, textTransform: "uppercase", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Maya · Advisor</div>
         <div style={{ fontSize: 13, color: C.textSub, lineHeight: 1.6 }}>{message}</div>
       </div>
     </div>
@@ -590,7 +580,10 @@ function CountdownRing({ timeLeft, total }) {
           strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
           style={{ transition: "stroke-dashoffset 1s linear, stroke 0.3s" }} />
       </svg>
-      <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: warn ? C.red : C.text }}>{timeLeft}</span>
+      <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 15, fontWeight: 800, color: warn ? C.red : C.text, lineHeight: 1 }}>{timeLeft}</span>
+        <span style={{ fontSize: 8, color: C.textFaint, textTransform: "uppercase", letterSpacing: 0.5 }}>sec</span>
+      </div>
     </div>
   );
 }
@@ -748,10 +741,9 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
       outline: warn ? `3px solid ${C.red}` : "3px solid transparent",
       outlineOffset: "-3px", transition: "outline 0.3s",
     }}>
-      <PerformanceHeader projection={projection} />
       {ending && <MonthEndingOverlay month={month} />}
 
-      {/* ── TOP BAR ─────────────────────────────────────────── */}
+      {/* ── TOP BAR (city/month/timer/end turn) ─────────────── */}
       <div style={{
         flexShrink: 0, display: "flex", alignItems: "center", gap: 14,
         padding: "8px 16px", background: C.cardBg,
@@ -772,14 +764,6 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             <div style={{ height: "100%", width: `${((roundIndex + 1) / 12) * 100}%`, background: C.blue, borderRadius: 3, transition: "width 0.4s" }} />
           </div>
         </div>
-        <div style={{
-          background: budgetColor === C.green ? C.greenBg : budgetColor === C.amber ? C.amberBg : C.redBg,
-          border: `1px solid ${budgetColor === C.green ? C.greenBorder : budgetColor === C.amber ? C.amberBorder : C.redBorder}`,
-          borderRadius: 8, padding: "5px 12px", textAlign: "center", minWidth: 88,
-        }}>
-          <div style={{ fontSize: 9, color: C.textFaint, textTransform: "uppercase", letterSpacing: 1 }}>Budget</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: budgetColor }}>${budgetRemaining.toFixed(1)}M</div>
-        </div>
         <CountdownRing timeLeft={timeLeft} total={TIMER.monthDuration} />
         <button onClick={() => commitMonth(false)} disabled={locked} style={{
           background: locked ? C.border : C.green, color: locked ? C.textMuted : "#fff",
@@ -790,6 +774,9 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
           {locked ? "⏳ Locking..." : "✓ End Turn"}
         </button>
       </div>
+
+      {/* ── GRADE BAR ───────────────────────────────────────── */}
+      <PerformanceHeader projection={projection} />
 
       {/* ── 3-COLUMN BODY ───────────────────────────────────── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -804,21 +791,12 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
             Set Policy {locked && <span style={{ color: C.red }}>🔒</span>}
           </div>
 
-          {uberLocked && (
-            <div style={{ background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 9, padding: "10px 12px", marginBottom: 12, display: "flex", gap: 8, alignItems: "flex-start" }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>🚗</span>
-              <div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: C.red, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>Uber Tax Locked until March</div>
-                <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>AVs just flooded the city — watch the road fill up. Your Uber tax slider unlocks in March.</div>
-              </div>
-            </div>
-          )}
 
           <SliderInput
             label="Uber / AV Tax" value={uberTax} onChange={onUberChange} color={C.uberColor}
             tooltip={ADVISOR.tooltips.uberTax} locked={locked || uberLocked}
             tag={uberLocked
-              ? { text: "🔒 unlocks March", bg: C.redBg, color: C.red, border: C.redBorder }
+              ? { text: "🔒 March", bg: C.redBg, color: C.red, border: C.redBorder }
               : { text: "earns $", bg: C.greenBg, color: C.green, border: C.greenBorder }}
             badge={!uberLocked && <TaxZoneWarning tax={uberTax} />}
             hint="Raises revenue · lowers congestion · high levels suppress mobility"
@@ -899,140 +877,96 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
   const prevStats = history.length >= 2 ? history[history.length - 2] : null;
   const budgetFraction = budgetRemaining / BUDGET_CONFIG.annualBudget;
   const projection = calculateProjection(history, budgetRemaining);
-  const chartData = history.map((m, i) => ({
-    name: MONTHS[i].slice(0, 3),
-    delta: m.monthlyDelta,
-    happiness: Math.round(m.happinessScore),
-  }));
+  const isLast = roundIndex === 11;
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif" }}>
-      <PerformanceHeader projection={projection} />
-      <div style={{ maxWidth: 580, margin: "0 auto", padding: "16px" }}>
+    <div style={{ height: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: 3, color: C.green, textTransform: "uppercase", fontWeight: 800 }}>Month Complete</div>
-            <h2 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: "3px 0 0" }}>{month} Results</h2>
-          </div>
-          <span style={{ fontSize: 16, fontWeight: 800, color: C.textMuted }}>{roundIndex + 1}/12</span>
+      {/* ── TOP BAR (same structure as planning — no timer, no budget, Next replaces End Turn) ── */}
+      <div style={{
+        flexShrink: 0, display: "flex", alignItems: "center", gap: 14,
+        padding: "8px 16px", background: C.cardBg,
+        borderBottom: `1px solid ${C.border}`,
+        boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+      }}>
+        <div style={{ minWidth: 110 }}>
+          <div style={{ fontSize: 9, letterSpacing: 2, color: C.green, textTransform: "uppercase", fontWeight: 800 }}>City 1 · {CITY_META.name}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{month} <span style={{ color: C.green, fontSize: 16 }}>✓</span></div>
         </div>
-
-        {/* Policy summary */}
-        <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
-          <div style={{ flex: 1, background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 9, padding: "11px", textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: C.red, textTransform: "uppercase", letterSpacing: 1, fontWeight: 800 }}>Uber Tax</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: C.uberColor }}>{uberTax}%</div>
-            {roundIndex < 2 && <div style={{ fontSize: 9, color: C.textFaint }}>locked this month</div>}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 9, color: C.textFaint }}>
+            <span>Jan</span>
+            <span style={{ color: C.green, fontWeight: 700 }}>{roundIndex + 1}/12</span>
+            <span>Dec</span>
           </div>
-          <div style={{ flex: 1, background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 9, padding: "11px", textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: C.blue, textTransform: "uppercase", letterSpacing: 1, fontWeight: 800 }}>Bus Subsidy</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: C.busColor }}>{busSubsidy}%</div>
-          </div>
-          <div style={{ flex: 1.3, background: stats.monthlyDelta >= 0 ? C.greenBg : C.redBg, border: `1px solid ${stats.monthlyDelta >= 0 ? C.greenBorder : C.redBorder}`, borderRadius: 9, padding: "11px", textAlign: "center" }}>
-            <div style={{ fontSize: 10, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, fontWeight: 800 }}>Budget Δ</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: stats.monthlyDelta >= 0 ? C.green : C.red }}>{stats.monthlyDelta >= 0 ? "+" : ""}{stats.monthlyDelta.toFixed(2)}M</div>
-            <div style={{ fontSize: 10, color: C.textFaint }}>+${stats.uberRevenue.toFixed(2)} tax / −${stats.busCost.toFixed(2)} bus</div>
+          <div style={{ height: 5, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${((roundIndex + 1) / 12) * 100}%`, background: C.green, borderRadius: 3, transition: "width 0.4s" }} />
           </div>
         </div>
-
-        {/* Stats gauges with breakdown */}
-        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-          <GaugeBar
-            label="Happiness"
-            value={stats.happinessScore}
-            type="happiness"
-            tooltip={ADVISOR.tooltips.happiness}
-            breakdown={stats.happinessBreakdown}
-            target="Goal: 65+"
-            prev={prevStats?.happinessScore ?? null}
-          />
-          <GaugeBar
-            label="Mobility"
-            value={stats.mobilityScore}
-            type="mobility"
-            tooltip={ADVISOR.tooltips.mobility}
-            breakdown={stats.mobilityBreakdown}
-            target="Target: 55–75"
-            prev={prevStats?.mobilityScore ?? null}
-          />
-          <GaugeBar
-            label="Congestion"
-            value={stats.congestionLevel}
-            type="congestion"
-            tooltip={ADVISOR.tooltips.congestion}
-            target="Goal: under 40"
-            prev={prevStats?.congestionLevel ?? null}
-          />
-          <GaugeBar
-            label="Budget Remaining"
-            value={budgetFraction}
-            type="budget"
-            tooltip={ADVISOR.tooltips.budget}
-            extra={`/ $${BUDGET_CONFIG.annualBudget}M`}
-            target="Safe zone: above $2.4M"
-          />
-        </div>
-
-        {timedOut && (
-          <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 8, padding: "8px 12px", fontSize: 11, color: C.amber, fontWeight: 700, marginBottom: 12 }}>
-            ⏰ Time ran out — policy locked automatically
-          </div>
-        )}
-
-        <div style={{ marginBottom: 14 }}><AdvisorBox message={advisorMessage} /></div>
-
-        {/* Why this changed */}
-        {(() => {
-          const lines = generateChangeSummary(stats, prevStats, uberTax, busSubsidy);
-          if (lines.length === 0) return null;
-          return (
-            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Why this changed</div>
-              {lines.map((line, i) => (
-                <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginBottom: 5 }}>
-                  <span style={{ fontSize: 13, flexShrink: 0, lineHeight: 1.3 }}>{line.icon}</span>
-                  <span style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>{line.text}</span>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-
-        {/* Budget chart */}
-        {history.length > 1 && (
-          <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Monthly Budget Δ</div>
-            <ResponsiveContainer width="100%" height={80}>
-              <BarChart data={chartData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 9, fill: C.textFaint }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 9, fill: C.textFaint }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 6, fontSize: 11 }} formatter={v => [`${v >= 0 ? "+" : ""}${v.toFixed(2)}M`, "Δ"]} />
-                <Bar dataKey="delta" radius={[4, 4, 0, 0]}>
-                  {chartData.map((e, i) => <Cell key={i} fill={e.delta >= 0 ? C.green : C.red} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
-              {[[C.green, "Tax earned more"], [C.red, "Bus cost more"]].map(([col, lbl]) => (
-                <div key={lbl} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: C.textMuted }}><div style={{ width: 10, height: 10, borderRadius: 2, background: col }} />{lbl}</div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* YTD */}
-        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 9, padding: "11px 15px", marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 12, color: C.textMuted, fontWeight: 600 }}>Year-to-date average happiness</span>
-          <span style={{ fontSize: 22, fontWeight: 800, color: gc(history.reduce((s, m) => s + m.happinessScore, 0) / history.length, "happiness") }}>
-            {Math.round(history.reduce((s, m) => s + m.happinessScore, 0) / history.length)}<span style={{ fontSize: 12, color: C.textFaint }}>/100</span>
-          </span>
-        </div>
-
-        <button onClick={onNext} style={{ width: "100%", background: C.blue, color: "#fff", border: "none", borderRadius: 10, padding: "13px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-          {roundIndex === 11 ? "See Year Results →" : `Next: ${MONTHS[roundIndex + 1]} →`}
+        <button onClick={onNext} style={{
+          background: C.blue, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px",
+          fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap",
+        }}>
+          {isLast ? "See Year Results →" : `Next: ${MONTHS[roundIndex + 1]} →`}
         </button>
+      </div>
+
+      {/* ── GRADE BAR ── */}
+      <PerformanceHeader projection={projection} />
+
+      {/* ── SCROLLABLE CONTENT ── */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ maxWidth: 548, margin: "0 auto", padding: "14px 16px" }}>
+
+          {/* Policy summary */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+            <div style={{ flex: 1, background: C.redBg, border: `1px solid ${C.redBorder}`, borderRadius: 9, padding: "10px", textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: C.red, textTransform: "uppercase", letterSpacing: 1, fontWeight: 800 }}>Uber Tax</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: C.uberColor }}>{uberTax}%</div>
+              {roundIndex < 2 && <div style={{ fontSize: 9, color: C.textFaint }}>locked</div>}
+            </div>
+            <div style={{ flex: 1, background: C.blueBg, border: `1px solid ${C.blueBorder}`, borderRadius: 9, padding: "10px", textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: C.blue, textTransform: "uppercase", letterSpacing: 1, fontWeight: 800 }}>Bus Subsidy</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: C.busColor }}>{busSubsidy}%</div>
+            </div>
+            <div style={{ flex: 1.3, background: stats.monthlyDelta >= 0 ? C.greenBg : C.redBg, border: `1px solid ${stats.monthlyDelta >= 0 ? C.greenBorder : C.redBorder}`, borderRadius: 9, padding: "10px", textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, fontWeight: 800 }}>Budget Δ</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: stats.monthlyDelta >= 0 ? C.green : C.red }}>{stats.monthlyDelta >= 0 ? "+" : ""}{stats.monthlyDelta.toFixed(2)}M</div>
+              <div style={{ fontSize: 10, color: C.textFaint }}>+${stats.uberRevenue.toFixed(2)} tax / −${stats.busCost.toFixed(2)} bus</div>
+            </div>
+            {timedOut && <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 9, padding: "10px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 16 }}>⏰</span>
+            </div>}
+          </div>
+
+          {/* Stats gauges with breakdown */}
+          <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px 16px", marginBottom: 14, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+            <GaugeBar label="Happiness" value={stats.happinessScore} type="happiness" tooltip={ADVISOR.tooltips.happiness} breakdown={stats.happinessBreakdown} target="Goal: 65+" prev={prevStats?.happinessScore ?? null} />
+            <GaugeBar label="Mobility" value={stats.mobilityScore} type="mobility" tooltip={ADVISOR.tooltips.mobility} breakdown={stats.mobilityBreakdown} target="Target: 55–75" prev={prevStats?.mobilityScore ?? null} />
+            <GaugeBar label="Congestion" value={stats.congestionLevel} type="congestion" tooltip={ADVISOR.tooltips.congestion} target="Goal: under 40" prev={prevStats?.congestionLevel ?? null} />
+            <GaugeBar label="Budget Remaining" value={budgetFraction} type="budget" tooltip={ADVISOR.tooltips.budget} extra={`/ $${BUDGET_CONFIG.annualBudget}M`} target="Safe zone: above $2.4M" />
+          </div>
+
+          <div style={{ marginBottom: 14 }}><AdvisorBox message={advisorMessage} /></div>
+
+          {/* Why this changed */}
+          {(() => {
+            const lines = generateChangeSummary(stats, prevStats, uberTax, busSubsidy);
+            if (lines.length === 0) return null;
+            return (
+              <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Why this changed</div>
+                {lines.map((line, i) => (
+                  <div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginBottom: 5 }}>
+                    <span style={{ fontSize: 13, flexShrink: 0, lineHeight: 1.3 }}>{line.icon}</span>
+                    <span style={{ fontSize: 11, color: C.textSub, lineHeight: 1.5 }}>{line.text}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+        </div>
       </div>
     </div>
   );

@@ -409,24 +409,24 @@ function SceneLegend({ congestion }) {
   const congColor = congestion > 65 ? "#DC2626" : congestion > 40 ? "#D97706" : "#166534";
   return (
     <div style={{
-      position: "absolute", bottom: 10, left: 10,
-      display: "flex", gap: 10, alignItems: "center",
+      position: "absolute", top: 10, left: 10,
+      display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
       background: "rgba(255,255,255,0.88)",
-      borderRadius: 8, padding: "5px 10px",
+      borderRadius: 8, padding: "4px 8px",
       boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
       fontSize: 10, fontWeight: 600, color: "#374151",
-      zIndex: 20,
+      zIndex: 20, maxWidth: "calc(100% - 20px)",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <div style={{ width: 20, height: 9, background: "#DC2626", borderRadius: 2 }} />
-        Car →
+      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        <div style={{ width: 16, height: 8, background: "#DC2626", borderRadius: 2, flexShrink: 0 }} />
+        <span>Car →</span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <div style={{ width: 32, height: 10, background: "#1D4ED8", borderRadius: 2 }} />
-        Bus ←
+      <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+        <div style={{ width: 22, height: 9, background: "#1D4ED8", borderRadius: 2, flexShrink: 0 }} />
+        <span>Bus ←</span>
       </div>
       <div style={{ color: congColor, fontWeight: 700 }}>
-        Traffic: {congLabel}
+        {congLabel}
       </div>
     </div>
   );

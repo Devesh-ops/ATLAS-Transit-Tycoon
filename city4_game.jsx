@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
 import CityIntroFlow from "./CityIntro";
 import CityRoadScene from "./CityRoadScene.jsx";
@@ -551,57 +552,33 @@ function calculateProjection(history, currentBudget) {
 
 function PerformanceHeader({ projection, goalGrade = "B" }) {
   return (
-    <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}` }}>
-      <div style={{ padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
-          <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
-            {projection.grade.grade}
-          </div>
-          <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score {Math.round(projection.score)}/100</div>
+    <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+      <div style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
+        <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
+          {projection.grade.grade}
         </div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade} or above to Win</div>
+        <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score {Math.round(projection.score)}/100</div>
+        {projection.nextGrade ? (
+          <div style={{ fontSize: 11, color: C.textFaint }}>· {projection.pointsToNext} pts to <span style={{ color: projection.nextGrade.color, fontWeight: 800 }}>{projection.nextGrade.grade}</span></div>
+        ) : (
+          <div style={{ fontSize: 11, color: C.textFaint }}>· Top grade</div>
+        )}
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade}+ to Win</div>
       </div>
-
-      <div style={{ padding: "0 16px 12px" }}>
-        <div style={{ background: C.insetBg, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px" }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
-            Score Breakdown
-          </div>
-
-          <div style={{ height: 8, background: C.track, borderRadius: 5, overflow: "hidden", display: "flex", marginBottom: 8 }}>
-            {projection.breakdown.map((b) => (
-              <div key={b.key} style={{ width: `${Math.max(0, Math.min(100, (b.points / Math.max(1, projection.score)) * 100))}%`, background: b.color }} />
-            ))}
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", rowGap: 6, columnGap: 10 }}>
-            {projection.breakdown.map((b) => (
-              <div key={b.key} style={{ display: "contents" }}>
-                <div style={{ fontSize: 12, color: C.textSub, fontWeight: 700 }}>
-                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 3, background: b.color, marginRight: 8, verticalAlign: "middle" }} />
-                  {b.label}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: b.color, fontVariantNumeric: "tabular-nums" }}>
-                  +{Math.max(0, b.points).toFixed(0)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginTop: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>
-              Total: <span style={{ color: C.textSub, fontWeight: 900 }}>{Math.round(projection.score)}</span>
-            </div>
-            {projection.nextGrade ? (
-              <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>
-                {projection.pointsToNext} pts to <span style={{ color: projection.nextGrade.color, fontWeight: 900 }}>{projection.nextGrade.grade}</span>
-              </div>
-            ) : (
-              <div style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>Top grade</div>
-            )}
-          </div>
+      <div style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
+          {projection.breakdown.map((b) => (
+            <div key={b.key} style={{ width: `${Math.max(0, Math.min(100, (b.points / Math.max(1, projection.score)) * 100))}%`, background: b.color, transition: "width 0.4s" }} />
+          ))}
         </div>
+        {projection.breakdown.map((b) => (
+          <div key={b.key} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: b.color }} />
+            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>{b.label} <span style={{ color: b.color }}>+{Math.max(0, b.points).toFixed(0)}</span></span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -624,12 +601,25 @@ function gc(value, type) {
 // ============================================================
 function InfoTip({ text }) {
   const [show, setShow] = useState(false);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const btnRef = useRef(null);
+  const handleEnter = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      const tipW = 230;
+      const wouldOverflow = r.left + tipW > window.innerWidth - 8;
+      const left = wouldOverflow ? Math.max(8, r.right - tipW) : Math.max(8, r.left);
+      setPos({ top: r.bottom + 6, left });
+    }
+    setShow(true);
+  };
   return (
-    <div style={{ position: "relative", display: "inline-block" }}>
-      <button onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}
-        style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: "50%", width: 16, height: 16, cursor: "pointer", color: C.textMuted, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>i</button>
-      {show && (
-        <div style={{ position: "absolute", right: 0, top: 20, width: 230, background: C.text, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 11px", fontSize: 11, color: C.insetBg, zIndex: 300, lineHeight: 1.5, pointerEvents: "none" }}>{text}</div>
+    <div style={{ position: "relative", display: "inline-block", flexShrink: 0 }}>
+      <button ref={btnRef} onMouseEnter={handleEnter} onMouseLeave={() => setShow(false)}
+        style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: "50%", width: 16, height: 16, cursor: "pointer", color: C.textMuted, fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}>i</button>
+      {show && createPortal(
+        <div style={{ position: "fixed", top: pos.top, left: pos.left, width: 230, background: C.text, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 11px", fontSize: 11, color: C.insetBg, zIndex: 9999, lineHeight: 1.5, pointerEvents: "none" }}>{text}</div>,
+        document.body
       )}
     </div>
   );
@@ -1005,7 +995,6 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel,
       outline: warn ? `3px solid ${C.red}` : "3px solid transparent",
       outlineOffset: "-3px", transition: "outline 0.3s",
     }}>
-      <PerformanceHeader projection={projection} />
       {ending && <MonthEndingOverlay month={month} />}
 
       {/* ── TOP BAR ─────────────────────────────────────────── */}
@@ -1030,14 +1019,6 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel,
             <div style={{ height: "100%", width: `${((roundIndex + 1) / 12) * 100}%`, background: C.rose, borderRadius: 3, transition: "width 0.4s" }} />
           </div>
         </div>
-        <div style={{
-          background: budgetColor === C.green ? C.greenBg : budgetColor === C.amber ? C.amberBg : C.redBg,
-          border: `1px solid ${budgetColor === C.green ? C.greenBorder : budgetColor === C.amber ? C.amberBorder : C.redBorder}`,
-          borderRadius: 8, padding: "5px 12px", textAlign: "center", minWidth: 88,
-        }}>
-          <div style={{ fontSize: 9, color: C.textFaint, textTransform: "uppercase", letterSpacing: 1 }}>Budget</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: budgetColor }}>${budgetRemaining.toFixed(1)}M</div>
-        </div>
         <CountdownRing timeLeft={timeLeft} total={TIMER.monthDuration} />
         <button onClick={() => commitMonth(false)} disabled={locked} style={{
           background: locked ? C.border : C.rose, color: locked ? C.textMuted : "#fff",
@@ -1048,6 +1029,8 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel,
           {locked ? "⏳ Locking..." : "✓ End Turn"}
         </button>
       </div>
+
+      <PerformanceHeader projection={projection} />
 
       {/* ── 3-COLUMN BODY ───────────────────────────────────── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
@@ -1164,20 +1147,28 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel,
   const projection = calculateProjection(history, budgetRemaining);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif" }}>
-      <PerformanceHeader projection={projection} />
-      <div style={{ maxWidth: 620, margin: "0 auto", padding: "14px" }}>
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 9, letterSpacing: 3, color: C.green, textTransform: "uppercase", fontWeight: 800 }}>Month Complete</div>
-            <h2 style={{ fontSize: 22, fontWeight: 800, color: C.text, margin: "2px 0 0" }}>{month} Results</h2>
+    <div style={{ height: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 14, padding: "8px 16px", background: C.cardBg, borderBottom: `1px solid ${C.border}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+        <div style={{ minWidth: 110 }}>
+          <div style={{ fontSize: 9, letterSpacing: 2, color: C.green, textTransform: "uppercase", fontWeight: 800 }}>City 4 · {CITY_META.name}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>{month} <span style={{ color: C.green, fontSize: 16 }}>✓</span></div>
+        </div>
+        <SeasonBadge roundIndex={roundIndex} />
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 9, color: C.textFaint }}>
+            <span>Jan</span><span style={{ color: C.green, fontWeight: 700 }}>{roundIndex + 1}/12</span><span>Dec</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <SeasonBadge roundIndex={roundIndex} />
-            <span style={{ fontSize: 14, fontWeight: 800, color: C.textMuted }}>{roundIndex + 1}/12</span>
+          <div style={{ height: 5, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${((roundIndex + 1) / 12) * 100}%`, background: C.green, borderRadius: 3, transition: "width 0.4s" }} />
           </div>
         </div>
+        <button onClick={onNext} style={{ background: isLast ? C.green : C.rose, color: "#fff", border: "none", borderRadius: 8, padding: "10px 18px", fontSize: 14, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>
+          {isLast ? "See Final Score →" : `Next: ${MONTHS[roundIndex + 1]} →`}
+        </button>
+      </div>
+      <PerformanceHeader projection={projection} />
+      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ maxWidth: 620, margin: "0 auto", padding: "14px" }}>
 
         {/* Policy row */}
         <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
@@ -1193,15 +1184,6 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel,
             <div style={{ fontSize: 8, color: C.textFaint }}>+{uberRevenue.toFixed(1)} −{busCost.toFixed(1)} −{acCost.toFixed(1)}</div>
           </div>
           {timedOut && <div style={{ background: C.amberBg, border: `1px solid ${C.amberBorder}`, borderRadius: 7, padding: "7px", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ fontSize: 12 }}>⏰</span></div>}
-        </div>
-
-        {/* Stat pills */}
-        <div style={{ display: "flex", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
-          <StatPill label="Happiness" value={cityHappiness} color={gc(cityHappiness, "happiness")} />
-          <StatPill label="Gender Eq." value={genderEquityScore} color={gc(genderEquityScore, "genderEquity")} />
-          <StatPill label="Income Eq." value={incomeEquityScore} color={gc(incomeEquityScore, "incomeEquity")} />
-          <StatPill label="Congestion" value={congestionLevel} color={gc(congestionLevel, "congestion")} />
-          <StatPill label="Budget" value={`$${budgetRemaining.toFixed(1)}M`} color={gc(budgetFraction, "budget")} />
         </div>
 
         <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 9 }}>
@@ -1275,10 +1257,8 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel,
           );
         })()}
 
-        <button onClick={onNext} style={{ width: "100%", background: isLast ? C.green : C.rose, color: "white", border: "none", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
-          {isLast ? "See Final Score →" : `Next: ${MONTHS[roundIndex + 1]} →`}
-        </button>
       </div>
+    </div>
     </div>
   );
 }
