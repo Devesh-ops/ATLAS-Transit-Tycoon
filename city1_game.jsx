@@ -399,7 +399,7 @@ function PerformanceHeader({ projection, goalGrade = "B" }) {
           <div style={{ fontSize: 11, color: C.textFaint }}>· Top grade</div>
         )}
         <div style={{ flex: 1 }} />
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade}+ to Advance</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: Grade {goalGrade} or Higher to Advance</div>
       </div>
       {/* Row 2: segmented bar + component breakdown */}
       <div style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -717,6 +717,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
   useEffect(() => {
     setTimeLeft(TIMER.monthDuration); setLocked(false); setEnding(false); lockedRef.current = false;
     const iv = setInterval(() => {
+      if (window.isGamePaused) return;
       setTimeLeft(prev => { if (prev <= 1) { clearInterval(iv); commitMonth(true); return 0; } return prev - 1; });
     }, 1000);
     return () => clearInterval(iv);
@@ -973,6 +974,9 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
 }
 
 function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const avgH = history.reduce((s, m) => s + m.happinessScore, 0) / history.length;
   const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / history.length;
   const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / history.length;
@@ -1088,13 +1092,13 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
           <div style={{ fontSize: 10, color: C.textFaint, marginTop: 12 }}>{DEBRIEF.source}</div>
         </div>
 
-        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>↺ Play Again</button>
+        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>↺ Play Again</button>
         {grade.min >= 65 ? (
-          <button onClick={onAdvance} style={{ width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 10, padding: "14px", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+          <button onClick={onAdvance} style={{ width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 12, padding: "16px", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
             Next City: Riverdale →
           </button>
         ) : (
-          <div style={{ background: C.redBg, color: C.red, padding: "12px", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight: 700 }}>
+          <div style={{ background: C.redBg, color: C.red, padding: "16px", border: `1px solid ${C.redBorder}`, borderRadius: 12, textAlign: "center", fontSize: 14, fontWeight: 700 }}>
             🔒 Achieve Grade B or higher to unlock Riverdale
           </div>
         )}

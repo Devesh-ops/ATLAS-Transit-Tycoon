@@ -4,9 +4,17 @@ import TransportTycoon from './city1_game.jsx';
 import RiverdaleTycoon from './city2_game.jsx';
 import GildedHollowTycoon from './city3_game.jsx';
 import CrestwoodTycoon from './city4_game.jsx';
+import AboutUsModal from './AboutUs.jsx';
 
 function App() {
     const [activeComponent, setActiveComponent] = useState('menu');
+    const [isAboutOpen, setIsAboutOpen] = useState(false);
+    const [hideGlobalControls, setHideGlobalControls] = useState(false);
+
+    // Reset visibility if we navigate away
+    React.useEffect(() => {
+        if (activeComponent !== 'city4') setHideGlobalControls(false);
+    }, [activeComponent]);
 
     const renderComponent = () => {
         switch (activeComponent) {
@@ -19,7 +27,7 @@ function App() {
             case 'city3':
                 return <GildedHollowTycoon onAdvance={() => setActiveComponent('city4')} />;
             case 'city4':
-                return <CrestwoodTycoon onAdvance={() => setActiveComponent('menu')} />;
+                return <CrestwoodTycoon onAdvance={() => { setActiveComponent('menu'); setHideGlobalControls(false); }} onSetFinalScreen={(val = true) => setHideGlobalControls(val)} />;
             default:
                 return (
                     <div style={{
@@ -86,6 +94,50 @@ function App() {
                     ← Back to Menu
                 </button>
             )}
+
+            {/* Global floating bottom-left controls */}
+            {!hideGlobalControls && (
+                <div style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 1000, display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <button
+                        onClick={() => setIsAboutOpen(true)}
+                        style={{
+                            padding: '10px 20px',
+                            background: '#F5F5F5',
+                            color: '#333',
+                            border: '1px solid #CCC',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                    >
+                        About
+                    </button>
+                    <a
+                        href="https://forms.gle/gXmrN1UNKQLN1uaQ6"
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Opens a Google Form in a new tab to give feedback. The game will be paused in the meantime."
+                        onClick={() => setIsAboutOpen(true)}
+                        style={{
+                            padding: '10px 20px',
+                            background: '#6D28D9',
+                            color: 'white',
+                            border: 'none',
+                            textDecoration: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                    >
+                        Give Feedback
+                    </a>
+                </div>
+            )}
+
+            {isAboutOpen && <AboutUsModal onClose={() => setIsAboutOpen(false)} />}
+
             {renderComponent()}
         </div>
     );
@@ -114,7 +166,7 @@ function TestCard({ title, desc, onClick }) {
                 e.currentTarget.style.borderColor = '#1E293B';
             }}
         >
-            <h3 style={{ margin: '0 0 10px 0' }}>{title}</h3>
+            <h3 style={{ margin: '0 0 10px 0', color: '#FFF' }}>{title}</h3>
             <p style={{ fontSize: '0.8rem', color: '#64748B', margin: 0 }}>{desc}</p>
         </div>
     );

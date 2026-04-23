@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
 import CityIntroFlow from "./CityIntro";
 import CityRoadScene from "./CityRoadScene.jsx";
+import { AboutUsContent } from "./AboutUs.jsx";
 
 // ============================================================
 //  DESIGN TOKENS
@@ -565,7 +566,7 @@ function PerformanceHeader({ projection, goalGrade = "B" }) {
           <div style={{ fontSize: 11, color: C.textFaint }}>· Top grade</div>
         )}
         <div style={{ flex: 1 }} />
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: {goalGrade}+ to Win</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: Grade {goalGrade} or Higher to Win</div>
       </div>
       <div style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
@@ -972,6 +973,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, acLevel,
   useEffect(() => {
     setTimeLeft(TIMER.monthDuration); setLocked(false); setEnding(false); lockedRef.current = false;
     const iv = setInterval(() => {
+      if (window.isGamePaused) return;
       setTimeLeft(prev => { if (prev <= 1) { clearInterval(iv); commitMonth(true); return 0; } return prev - 1; });
     }, 1000);
     return () => clearInterval(iv);
@@ -1263,7 +1265,10 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, acLevel,
   );
 }
 
-function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }) {
+function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance, highScore, onUpdateHighScore }) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const avgH = history.reduce((s, m) => s + m.cityHappiness, 0) / history.length;
   const avgGE = history.reduce((s, m) => s + m.genderEquityScore, 0) / history.length;
   const avgIE = history.reduce((s, m) => s + m.incomeEquityScore, 0) / history.length;
@@ -1281,17 +1286,11 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
   const grade = getGrade(scoreless ? 0 : finalScore);
   const { failures, worstMonth, worstHappiness } = diagnoseRun(history, finalBudget);
   const [openIdx, setOpenIdx] = useState(null);
-  const [highScore, setHighScore] = useState(() => {
-    const saved = localStorage.getItem("ATLAS_City4_HighScore");
-    return saved ? parseInt(saved, 10) : 0;
-  });
-
   useEffect(() => {
     if (!scoreless && finalScore > highScore) {
-      localStorage.setItem("ATLAS_City4_HighScore", String(finalScore));
-      setHighScore(finalScore);
+      onUpdateHighScore(finalScore);
     }
-  }, [finalScore, highScore, scoreless]);
+  }, [finalScore, highScore, scoreless, onUpdateHighScore]);
 
   const chartData = history.map((m, i) => ({
     month: MONTHS[i].slice(0, 3),
@@ -1316,9 +1315,6 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
           <div style={{ fontSize: 16, color: C.textSub, marginTop: 5, fontWeight: 600 }}>
             {scoreless ? "City ran out of funds" : grade.label}
           </div>
-          {!scoreless && <div style={{ fontSize: 11, color: C.textMuted, marginTop: 3 }}>
-            Score: {finalScore} = H {Math.round(avgH)}×{weights.happiness} + GE {Math.round(avgGE)}×{weights.genderEquity} + IE {Math.round(avgIE)}×{weights.incomeEquity} + B {Math.round(budFrac * 100)}×{weights.budget}
-          </div>}
         </div>
 
         {/* Summary pills */}
@@ -1450,17 +1446,46 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
           <div style={{ fontSize: 9, color: C.textFaint, marginTop: 10 }}>{DEBRIEF.source}</div>
         </div>
 
-        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "14px", marginBottom: 14, textAlign: "center" }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>High Score</div>
-          <div style={{ fontSize: 24, fontWeight: 800, color: C.textSub }}>{highScore}</div>
-        </div>
-
-        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 10 }}>↺ Play Again</button>
-        {grade.min >= 65 && (
-          <div style={{ padding: "12px", background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 8, color: C.green, textAlign: "center", fontSize: 16, fontWeight: 800 }}>
-            🎉 Game Complete! You've successfully managed all cities!
+        <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>↺ Play Again</button>
+        {grade.min >= 65 ? (
+          <button onClick={onAdvance} style={{ width: "100%", background: C.green, color: "#fff", border: "none", borderRadius: 12, padding: "16px", fontSize: 16, fontWeight: 800, cursor: "pointer" }}>
+            Complete Campaign →
+          </button>
+        ) : (
+          <div style={{ background: C.redBg, color: C.red, padding: "16px", border: `1px solid ${C.redBorder}`, borderRadius: 12, textAlign: "center", fontSize: 14, fontWeight: 700 }}>
+            🔒 Achieve Grade B or higher to win the campaign
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function GameCompleteScreen({ highScore, onRestart }) {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", padding: "40px 20px", display: "flex", justifyContent: "center" }}>
+      <div style={{ maxWidth: 600, width: "100%", textAlign: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: C.rose, textTransform: "uppercase", letterSpacing: 4, marginBottom: 20 }}>Campaign Finished</div>
+        <h1 style={{ fontSize: 48, fontWeight: 900, color: C.text, margin: "0 0 10px", lineHeight: 1.1 }}>🏆 Game Complete!</h1>
+        <p style={{ fontSize: 18, color: C.textSub, marginBottom: 40 }}>You've successfully navigated the complexities of all four cities.</p>
+
+        <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 20, padding: "30px", marginBottom: 30, boxShadow: "0 10px 30px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 2, marginBottom: 10 }}>Final Campaign High Score</div>
+          <div style={{ fontSize: 64, fontWeight: 900, color: C.purple, lineHeight: 1 }}>{highScore}</div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 15, marginBottom: 50 }}>
+          <button onClick={onRestart} style={{ width: "100%", background: C.cardBg, color: C.textSub, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>↻ Play Again</button>
+        </div>
+
+        <div style={{ background: C.insetBg, borderRadius: 20, padding: "30px", textAlign: "left" }}>
+          <h2 style={{ margin: "0 0 15px", fontSize: '24px', color: C.text, fontWeight: 900 }}>About Atlas Transit Tycoon</h2>
+          <AboutUsContent />
+        </div>
       </div>
     </div>
   );
@@ -1469,7 +1494,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
 // ============================================================
 //  MAIN GAME CONTROLLER
 // ============================================================
-export default function CrestwoodTycoonCity4({ onAdvance }) {
+export default function CrestwoodTycoonCity4({ onAdvance, onSetFinalScreen }) {
   const [screen, setScreen] = useState("intro");
   const [roundIndex, setRound] = useState(0);
   const [uberTax, setUber] = useState(0);
@@ -1481,8 +1506,27 @@ export default function CrestwoodTycoonCity4({ onAdvance }) {
   const [timedOut, setTO] = useState(false);
   const [budget, setBudget] = useState(BUDGET_CONFIG.annualBudget);
   const [scoreless, setSL] = useState(false);
-  const [gameOverMonth, setGOM] = useState("");
-  const [polMonth, setPolMonth] = useState("");
+  const [highScore, setHighScore] = useState(() => {
+    const saved = localStorage.getItem("ATLAS_City4_HighScore");
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  const handleUpdateHighScore = useCallback((newScore) => {
+    localStorage.setItem("ATLAS_City4_HighScore", String(newScore));
+    setHighScore(newScore);
+  }, []);
+
+  const handleNextMonth = useCallback((newBudget) => {
+    setBudget(prev => {
+      if (newBudget <= 0) { setGOM(MONTHS[roundIndex]); setScreen("gameOver"); return 0; }
+      setScreen("result");
+      return newBudget;
+    });
+  }, [roundIndex]);
+
+  const handleFinishLevel = useCallback(() => {
+    setScreen("yearEnd");
+  }, []);
 
   const handleCommit = useCallback((uberVal, busVal, acVal, wasTimedOut) => {
     setBudget(prev => {
@@ -1502,28 +1546,32 @@ export default function CrestwoodTycoonCity4({ onAdvance }) {
         }
         return nh;
       });
-      if (newBudget <= 0) { setGOM(MONTHS[roundIndex]); setScreen("gameOver"); return 0; }
-      setScreen("result");
+      handleNextMonth(newBudget);
       return newBudget;
     });
-  }, [roundIndex]);
+  }, [roundIndex, handleNextMonth]);
 
   const handleNext = useCallback(() => {
-    if (roundIndex === 11) setScreen("yearEnd");
-    else { setRound(r => r + 1); setScreen("planning"); }
-  }, [roundIndex]);
+    if (roundIndex === 11) {
+      setScreen("gameComplete");
+      if (onSetFinalScreen) onSetFinalScreen();
+    } else { setRound(r => r + 1); setScreen("planning"); }
+  }, [roundIndex, onSetFinalScreen]);
 
   const handleRestart = useCallback(() => {
     setScreen("intro"); setRound(0); setUber(0); setBus(0); setAC(0);
     setHistory([]); setResult(null); setTO(false);
     setBudget(BUDGET_CONFIG.annualBudget); setSL(false); setGOM(""); setPolMonth("");
-  }, []);
+    if (onSetFinalScreen) onSetFinalScreen(false);
+  }, [onSetFinalScreen]);
 
   const handleContinue = useCallback(() => {
     setSL(true);
-    if (roundIndex === 11) setScreen("yearEnd");
-    else { setRound(r => r + 1); setBudget(0); setScreen("planning"); }
-  }, [roundIndex]);
+    if (roundIndex === 11) {
+      setScreen("gameComplete");
+      if (onSetFinalScreen) onSetFinalScreen();
+    } else { setRound(r => r + 1); setBudget(0); setScreen("planning"); }
+  }, [roundIndex, onSetFinalScreen]);
 
   if (screen === "intro") return <IntroScreen onStart={() => setScreen("planning")} />;
   if (screen === "gameOver") return <GameOverScreen month={gameOverMonth} onRestart={handleRestart} onContinue={handleContinue} />;
@@ -1538,8 +1586,10 @@ export default function CrestwoodTycoonCity4({ onAdvance }) {
     <ResultScreen month={MONTHS[roundIndex]} roundIndex={roundIndex}
       stats={result} uberTax={result?.uberTax ?? 0} busSubsidy={result?.busSubsidy ?? 0}
       acLevel={result?.acLevel ?? 0}
-      advisorMessage={advisorMsg} onNext={handleNext}
+      advisorMessage={advisorMsg} onNext={roundIndex === 11 ? handleFinishLevel : handleNext}
       history={history} timedOut={timedOut} budgetRemaining={budget} />
   );
-  if (screen === "yearEnd") return <YearEndScreen history={history} finalBudget={budget} onRestart={handleRestart} scoreless={scoreless} onAdvance={onAdvance} />;
+  if (screen === "yearEnd") return <YearEndScreen history={history} finalBudget={budget} onRestart={handleRestart} scoreless={scoreless} onAdvance={handleNext} highScore={highScore} onUpdateHighScore={handleUpdateHighScore} />;
+  if (screen === "gameComplete") return <GameCompleteScreen highScore={highScore} onRestart={handleRestart} />;
+  return null;
 }
