@@ -274,6 +274,9 @@ function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
 
 // Causal year-end failure diagnosis
 function diagnoseRun(history, finalBudget) {
+  if (!history || history.length === 0) {
+    return { failures: [], worstMonth: "N/A", worstHappiness: 0 };
+  }
   // Only look at months 2-11 for policy failure (months 0-1 had forced 0% uber)
   const policyMonths = history.slice(2);
   const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / history.length;
@@ -346,37 +349,62 @@ function getNextGrade(score) {
   const sorted = [...SCORING.grades].sort((a, b) => a.min - b.min);
   return sorted.find(g => g.min > score) || null;
 }
-
+/**
+ * Calculates a "Smart Mean" that accounts for trends. 
+ * If a player is improving, the projection should be more optimistic.
+ */
+function projectMetricTrend(values, totalMonths = 12) {
+  const n = values.length;
+  if (n === 0) return 50;
+  if (n === 1) return values[0];
+  const currentSum = values.reduce((a, b) => a + b, 0);
+  const recentN = Math.min(n, 4);
+  const recentValues = values.slice(-recentN);
+  let slope = 0;
+  if (recentN > 1) {
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (let i = 0; i < recentN; i++) {
+        sumX += i; sumY += recentValues[i];
+        sumXY += i * recentValues[i]; sumXX += i * i;
+    }
+    slope = (recentN * sumXY - sumX * sumY) / (recentN * sumXX - sumX * sumX);
+  }
+  const remainingCount = totalMonths - n;
+  let projectedFutureSum = 0;
+  const lastVal = values[n - 1];
+  for (let i = 1; i <= remainingCount; i++) {
+    const dampenedSlope = slope * Math.pow(0.85, i);
+    projectedFutureSum += Math.max(0, Math.min(100, lastVal + dampenedSlope * i));
+  }
+  return (currentSum + projectedFutureSum) / totalMonths;
+}
 function calculateProjection(history, currentBudget) {
   const monthsElapsed = history.length || 0;
   if (monthsElapsed === 0) {
-    const score = 50;
-    const grade = getGrade(score);
-    const next = getNextGrade(score);
     return {
-      score,
-      grade,
+      score: 50,
+      grade: getGrade(50),
       breakdown: [
-        { key: "happiness", label: "Happiness", points: 50, color: gc(50, "happiness") },
-        { key: "budget", label: "Budget", points: 0, color: gc(0.5, "budget") },
+        { key: "happiness", label: "Happiness", points: 50, color: C.green },
+        { key: "budget", label: "Budget", points: 0, color: C.amber },
       ],
-      nextGrade: next,
-      pointsToNext: next ? Math.max(0, Math.ceil(next.min - score)) : 0,
+      nextGrade: getNextGrade(50),
+      pointsToNext: 10,
     };
   }
-  const avgHappiness = history.reduce((s, h) => s + h.happinessScore, 0) / monthsElapsed;
+  const smartH = projectMetricTrend(history.map(h => h.happinessScore));
   const avgDelta = (currentBudget - BUDGET_CONFIG.annualBudget) / monthsElapsed;
   const projectedBudgetFrac = Math.max(0, currentBudget + (avgDelta * (12 - monthsElapsed))) / BUDGET_CONFIG.annualBudget;
   const budgetPoints = Math.max(0, projectedBudgetFrac * 100 * BUDGET_CONFIG.budgetBonusWeight);
-  const projectedScore = avgHappiness + budgetPoints;
+  const projectedScore = smartH + budgetPoints;
   const grade = getGrade(projectedScore);
   const next = getNextGrade(projectedScore);
   return {
     score: projectedScore,
     grade,
     breakdown: [
-      { key: "happiness", label: "Happiness", points: avgHappiness, color: gc(avgHappiness, "happiness") },
-      { key: "budget", label: "Budget", points: budgetPoints, color: gc(projectedBudgetFrac, "budget") },
+      { key: "happiness", label: "Happiness", points: smartH, color: C.green },
+      { key: "budget", label: "Budget", points: budgetPoints, color: C.amber },
     ],
     nextGrade: next,
     pointsToNext: next ? Math.max(0, Math.ceil(next.min - projectedScore)) : 0,
@@ -387,8 +415,11 @@ function PerformanceHeader({ projection, goalGrade = "B" }) {
   return (
     <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
       {/* Row 1: grade badge + score + pts to next + goal */}
-      <div style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
+      <div className="mobile-grade-bar" style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
+          <InfoTip text="Predicts your final year-end grade based on your current score and recent performance trends." />
+        </div>
         <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
           {projection.grade.grade}
         </div>
@@ -402,7 +433,7 @@ function PerformanceHeader({ projection, goalGrade = "B" }) {
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: Grade {goalGrade} or Higher to Advance</div>
       </div>
       {/* Row 2: segmented bar + component breakdown */}
-      <div style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="mobile-grade-bar-row2" style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
           {projection.breakdown.map((b) => (
             <div key={b.key} style={{ width: `${Math.max(0, Math.min(100, (b.points / Math.max(1, projection.score)) * 100))}%`, background: b.color, transition: "width 0.4s" }} />
@@ -745,7 +776,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
       {ending && <MonthEndingOverlay month={month} />}
 
       {/* ── TOP BAR (city/month/timer/end turn) ─────────────── */}
-      <div style={{
+      <div className="mobile-header" style={{
         flexShrink: 0, display: "flex", alignItems: "center", gap: 14,
         padding: "8px 16px", background: C.cardBg,
         borderBottom: `1px solid ${C.border}`,
@@ -780,10 +811,10 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
       <PerformanceHeader projection={projection} />
 
       {/* ── 3-COLUMN BODY ───────────────────────────────────── */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="mobile-stack" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* LEFT: Policy sliders */}
-        <div style={{
+        <div className="mobile-full-width" style={{
           width: 272, flexShrink: 0, overflowY: "auto",
           padding: "14px 16px", borderRight: `1px solid ${C.border}`,
           display: "flex", flexDirection: "column",
@@ -822,7 +853,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
         </div>
 
         {/* CENTER: City road visualization */}
-        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <div className="mobile-road-height" style={{ flex: 1, position: "relative", overflow: "hidden" }}>
           <CityRoadScene
             cityLevel={1}
             uberTax={uberTax}
@@ -842,7 +873,7 @@ function PlanningScreen({ month, roundIndex, uberTax, busSubsidy, onUberChange, 
         </div>
 
         {/* RIGHT: Metrics */}
-        <div style={{
+        <div className="mobile-full-width mobile-scroll-pad" style={{
           width: 272, flexShrink: 0, overflowY: "auto",
           padding: "14px 16px", borderLeft: `1px solid ${C.border}`,
         }}>
@@ -884,7 +915,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
     <div style={{ height: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
       {/* ── TOP BAR (same structure as planning — no timer, no budget, Next replaces End Turn) ── */}
-      <div style={{
+      <div className="mobile-header" style={{
         flexShrink: 0, display: "flex", alignItems: "center", gap: 14,
         padding: "8px 16px", background: C.cardBg,
         borderBottom: `1px solid ${C.border}`,
@@ -917,7 +948,7 @@ function ResultScreen({ month, roundIndex, stats, uberTax, busSubsidy, advisorMe
 
       {/* ── SCROLLABLE CONTENT ── */}
       <div style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ maxWidth: 548, margin: "0 auto", padding: "14px 16px" }}>
+        <div className="mobile-scroll-pad" style={{ maxWidth: 548, margin: "0 auto", padding: "14px 16px" }}>
 
           {/* Policy summary */}
           <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
@@ -977,9 +1008,10 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
-  const avgH = history.reduce((s, m) => s + m.happinessScore, 0) / history.length;
-  const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / history.length;
-  const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / history.length;
+  const hLen = history.length || 1;
+  const avgH = history.reduce((s, m) => s + m.happinessScore, 0) / hLen;
+  const avgM = history.reduce((s, m) => s + m.mobilityScore, 0) / hLen;
+  const avgC = history.reduce((s, m) => s + m.congestionLevel, 0) / hLen;
   const budFrac = finalBudget / BUDGET_CONFIG.annualBudget;
   const bonus = scoreless ? 0 : Math.max(0, budFrac * 100 * BUDGET_CONFIG.budgetBonusWeight);
   const rawScore = avgH + bonus;
@@ -990,14 +1022,44 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
   const [openIdx, setOpenIdx] = useState(null);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", padding: "16px" }}>
+    <div className="mobile-scroll-pad" style={{ minHeight: "100vh", background: C.pageBg, fontFamily: "Georgia,serif", padding: "16px" }}>
       <div style={{ maxWidth: 580, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ fontSize: 10, letterSpacing: 4, color: C.blue, textTransform: "uppercase", fontWeight: 800, marginBottom: 8 }}>Year Complete · Smallville</div>
+          {scoreless && <>
+            <div style={{ fontSize: 44, fontWeight: 800, color: C.red }}>Bankrupt</div>
+            <div style={{ fontSize: 16, color: C.textSub, marginTop: 5, fontWeight: 600 }}>City ran out of funds</div>
+          </>}
           {!scoreless && <>
             <div style={{ fontSize: 90, fontWeight: 800, color: grade.color, lineHeight: 1 }}>{grade.grade}</div>
-            <div style={{ fontSize: 18, color: C.textSub, fontWeight: 600 }}>{grade.label}</div>
-            <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>Score: {finalScore} = happiness {Math.round(avgH)} + budget bonus {Math.round(bonus)}</div>
+            <div style={{ fontSize: 18, color: C.textSub, fontWeight: 600, marginBottom: 20 }}>{grade.label}</div>
+
+            <div style={{ background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px", marginBottom: 20, textAlign: "left", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>How your grade was calculated</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: C.textSub }}>Average Happiness Contribution</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: C.blue }}>+{Math.round(avgH)} pts</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: C.textSub }}>Budget Efficiency Bonus</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: C.green }}>+{Math.round(bonus)} pts</span>
+                </div>
+                <div style={{ height: 1, background: C.borderLight, margin: "4px 0" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Final Score</span>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: grade.color }}>{finalScore} / 100</span>
+                </div>
+              </div>
+              
+              <div style={{ marginTop: 16, padding: "10px", background: finalScore >= 65 ? C.greenBg : C.redBg, borderRadius: 8, border: `1px solid ${finalScore >= 65 ? C.greenBorder : C.redBorder}`, textAlign: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: finalScore >= 65 ? C.green : C.red }}>
+                  {finalScore >= 65 
+                    ? "🎉 Goal Reached! Grade B achieved." 
+                    : `🔒 You needed ${65 - finalScore} more points to reach Grade B and advance.`}
+                </span>
+              </div>
+            </div>
           </>}
           {scoreless && <div style={{ fontSize: 18, color: C.textMuted }}>Year complete — no score (continued after failure)</div>}
         </div>
@@ -1125,27 +1187,40 @@ export default function TransportTycoon({ onAdvance }) {
   const [polMonth, setPolMonth] = useState("");
 
   const handleCommit = useCallback((uberVal, busVal, wasTimedOut) => {
-    setBudget(prev => {
-      const stats = simulate(uberVal, busVal, prev, roundIndex);
-      const newBudget = +(prev + stats.monthlyDelta).toFixed(3);
-      const msg = getMonthEndMessage(stats, uberVal, busVal, Math.max(0, newBudget) / BUDGET_CONFIG.annualBudget, wasTimedOut);
-      const record = { ...stats, uberTax: uberVal, busSubsidy: busVal };
-      setResult(record); setMsg(msg); setTO(wasTimedOut);
-      setHistory(h => {
-        const nh = [...h, record];
-        const streak = nh.slice(-SIMULATION.politicalStreakNeeded)
-          .filter(r => r.happinessScore < SIMULATION.politicalFloor).length;
-        if (streak >= SIMULATION.politicalStreakNeeded && nh.length >= SIMULATION.politicalStreakNeeded) {
-          setPolMonth(MONTHS[nh.length - 1]);
-          setScreen("politicalLoss");
-        }
-        return nh;
-      });
-      if (newBudget <= 0) { setGOM(MONTHS[roundIndex]); setScreen("gameOver"); return 0; }
-      setScreen("result");
-      return newBudget;
+    // 1. Physics
+    const stats = simulate(uberVal, busVal, budget, roundIndex);
+    const newBudget = +(budget + stats.monthlyDelta).toFixed(3);
+    const bf = Math.max(0, newBudget) / BUDGET_CONFIG.annualBudget;
+
+    // 2. Feedback
+    const msg = getMonthEndMessage(stats, uberVal, busVal, bf, wasTimedOut);
+    const record = { ...stats, uberTax: uberVal, busSubsidy: busVal };
+
+    // 3. Update state
+    setResult(record);
+    setMsg(msg);
+    setTO(wasTimedOut);
+    setBudget(newBudget <= 0 ? 0 : newBudget);
+
+    // 4. History and Screen
+    setHistory(h => {
+      const nh = [...h, record];
+      const streak = nh.slice(-SIMULATION.politicalStreakNeeded)
+        .filter(r => r.happinessScore < SIMULATION.politicalFloor).length;
+
+      let targetScreen = "result";
+      if (newBudget <= 0) {
+        setGOM(MONTHS[roundIndex]);
+        targetScreen = "gameOver";
+      } else if (streak >= SIMULATION.politicalStreakNeeded && nh.length >= SIMULATION.politicalStreakNeeded) {
+        setPolMonth(MONTHS[nh.length - 1]);
+        targetScreen = "politicalLoss";
+      }
+
+      setScreen(targetScreen);
+      return nh;
     });
-  }, [roundIndex]);
+  }, [roundIndex, budget]);
 
   const handleNext = useCallback(() => {
     if (roundIndex === 11) setScreen("yearEnd");

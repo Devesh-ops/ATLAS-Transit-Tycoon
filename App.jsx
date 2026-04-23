@@ -8,8 +8,103 @@ import AboutUsModal from './AboutUs.jsx';
 
 function App() {
     const [activeComponent, setActiveComponent] = useState('menu');
-    const [isAboutOpen, setIsAboutOpen] = useState(false);
-    const [hideGlobalControls, setHideGlobalControls] = useState(false);
+    const [isAboutOpen, setIsAboutOpen] = React.useState(false);
+    const [hideGlobalControls, setHideGlobalControls] = React.useState(false);
+
+    // Global Mobile Responsive CSS
+    React.useEffect(() => {
+        const styleId = 'mobile-responsive-styles';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = `
+                /* Absolute baseline resets for mobile */
+                * { box-sizing: border-box !important; }
+                
+                @media (max-width: 800px) {
+                    /* Main Layout Stacking */
+                    .mobile-stack {
+                        flex-direction: column !important;
+                        overflow-y: auto !important;
+                        overflow-x: hidden !important; /* Clip escaping cars */
+                        height: 100vh !important;
+                        display: block !important; /* Stack naturally */
+                    }
+                    .mobile-scroll-pad {
+                        padding-bottom: 100px !important; /* Clearance for floating buttons */
+                    }
+                    
+                    /* Sidebar columns become full width */
+                    .mobile-full-width {
+                        width: 100% !important;
+                        min-width: 0 !important;
+                        border-left: none !important;
+                        border-right: none !important;
+                        border-bottom: 1px solid rgba(0,0,0,0.1) !important;
+                        flex-shrink: 0 !important; /* Don't shrink to 0 */
+                        height: auto !important;
+                        overflow-y: visible !important;
+                    }
+                    
+                    /* Road scene gets a fixed height so it doesn't disappear */
+                    .mobile-road-height {
+                        height: 500px !important; /* Increased from 380px to accommodate taller cities like City 4 */
+                        min-height: 500px !important;
+                        flex: none !important;
+                        position: relative !important;
+                        overflow: hidden !important; /* MUST CLIP CARS */
+                        z-index: 5 !important;
+                    }
+
+                    /* Performance Header / Grade Bar mobile fixes */
+                    .mobile-grade-bar {
+                        flex-wrap: wrap !important;
+                        padding: 10px 14px !important;
+                        gap: 6px !important;
+                    }
+                    .mobile-grade-bar-row2 {
+                        flex-wrap: wrap !important;
+                        gap: 8px !important;
+                    }
+                    .mobile-grade-bar-row2 > div:first-child {
+                        width: 100% !important; /* Full width progress bar on mobile */
+                        margin-bottom: 4px !important;
+                    }
+
+                    /* Compact Header for mobile */
+                    .mobile-header {
+                        padding: 10px !important;
+                        gap: 12px 6px !important;
+                        flex-wrap: wrap !important;
+                        height: auto !important; /* Grow with chips */
+                        justify-content: space-between !important;
+                    }
+                    
+                    /* Make the city name and badge occupy the top row if needed */
+                    .mobile-header > div:first-child {
+                        min-width: 120px !important;
+                        flex: 1 1 auto !important;
+                    }
+
+                    /* Ensure the season badge doesn't overlap */
+                    .mobile-season-badge {
+                        margin: 0 !important;
+                        flex-shrink: 0 !important;
+                    }
+                    
+                    /* Floating Global Controls */
+                    .global-controls-container {
+                        bottom: 12px !important;
+                        left: 12px !important;
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 8px !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }, []);
 
     // Reset visibility if we navigate away
     React.useEffect(() => {
@@ -97,7 +192,7 @@ function App() {
 
             {/* Global floating bottom-left controls */}
             {!hideGlobalControls && (
-                <div style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 1000, display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div className="global-controls-container" style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 1000, display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <button
                         onClick={() => setIsAboutOpen(true)}
                         style={{
