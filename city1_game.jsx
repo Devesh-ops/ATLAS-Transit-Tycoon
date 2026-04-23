@@ -381,15 +381,17 @@ function projectMetricTrend(values, totalMonths = 12) {
 function calculateProjection(history, currentBudget) {
   const monthsElapsed = history.length || 0;
   if (monthsElapsed === 0) {
+    const startBudgetPts = 1.0 * 100 * BUDGET_CONFIG.budgetBonusWeight;
+    const startScore = 50 + startBudgetPts;
     return {
-      score: 50,
-      grade: getGrade(50),
+      score: startScore,
+      grade: getGrade(startScore),
       breakdown: [
         { key: "happiness", label: "Happiness", points: 50, color: C.green },
-        { key: "budget", label: "Budget", points: 0, color: C.amber },
+        { key: "budget", label: "Budget", points: startBudgetPts, color: C.amber },
       ],
-      nextGrade: getNextGrade(50),
-      pointsToNext: 10,
+      nextGrade: getNextGrade(startScore),
+      pointsToNext: 8,
     };
   }
   const smartH = projectMetricTrend(history.map(h => h.happinessScore));

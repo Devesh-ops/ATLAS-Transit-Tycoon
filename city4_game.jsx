@@ -391,9 +391,9 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
     ],
     happinessBreakdown: [
       { label: "Base", value: baseHappiness },
-      { label: "Mobility", value: hMobTotal, color: C.blue },
-      { label: "Congestion", value: hCongTotal, color: C.amber },
-      { label: "Budget", value: hBudgTotal, color: C.red }
+      { label: "Mobility", value: isFinite(hMobTotal) ? hMobTotal : 0, color: C.blue },
+      { label: "Congestion", value: isFinite(hCongTotal) ? hCongTotal : 0, color: C.amber },
+      { label: "Budget", value: isFinite(hBudgTotal) ? hBudgTotal : 0, color: C.red }
     ]
   };
 
@@ -547,7 +547,8 @@ function projectMetricTrend(values, totalMonths = 12) {
     projectedFutureSum += projectedVal;
   }
 
-  return (currentSum + projectedFutureSum) / totalMonths;
+  const mean = (currentSum + projectedFutureSum) / totalMonths;
+  return isFinite(mean) ? mean : simpleAvg;
 }
 
 function getGrade(score) {
@@ -564,17 +565,19 @@ function calculateProjection(history, currentBudget) {
   const { weights } = SCORING;
   
   if (monthsElapsed === 0) {
+    const startBudgetPts = 1.0 * 100 * weights.budget; // $50M starts at max points
+    const startScore = (50 * weights.happiness) + (50 * weights.genderEquity) + (50 * weights.incomeEquity) + startBudgetPts;
     return {
-      score: 50,
-      grade: getGrade(50),
+      score: startScore,
+      grade: getGrade(startScore),
       breakdown: [
         { key: "happiness", label: "Happiness", points: 50 * weights.happiness, color: C.green },
         { key: "gender", label: "Gender Eq.", points: 50 * weights.genderEquity, color: C.rose },
         { key: "income", label: "Income Eq.", points: 50 * weights.incomeEquity, color: C.purple },
-        { key: "budget", label: "Budget", points: 0, color: C.amber },
+        { key: "budget", label: "Budget", points: startBudgetPts, color: C.amber },
       ],
-      nextGrade: getNextGrade(50),
-      pointsToNext: 10,
+      nextGrade: getNextGrade(startScore),
+      pointsToNext: 8,
     };
   }
 
