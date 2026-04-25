@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import CityRoadScene from "./CityRoadScene.jsx";
 
 export default function OnboardingFlow({ onComplete }) {
     const [step, setStep] = useState(0);
@@ -387,7 +388,7 @@ function TutorialFlow({ onComplete }) {
             justifyContent: "center",
             fontFamily: "Georgia, serif"
         }}>
-            {/* The background "Game" being explained - removed blur and opacity so spotlight is bright */}
+            {/* The background "Game" being explained */}
             <div style={{ pointerEvents: "none", width: "100%", height: "100%" }}>
                 <MockGameUI tutorialStep={tutorialStep} />
             </div>
@@ -396,149 +397,267 @@ function TutorialFlow({ onComplete }) {
             <div style={{
                 position: "absolute",
                 inset: 0,
-                background: "rgba(2, 8, 23, 0.7)",
-                zIndex: 50
-            }}>
-                {/* Visual hole removed - components now use z-index to appear above overlay */}
-            </div>
+                background: "rgba(2, 8, 23, 0.65)",
+                zIndex: 50,
+                pointerEvents: "none"
+            }} />
 
             {/* Content Box */}
             <div style={{
                 position: "absolute",
                 ...currentStep.contentPosition,
-                zIndex: 100,
-                maxWidth: 320,
+                zIndex: 200,
+                maxWidth: 340,
                 background: "#0F172A",
                 border: "1px solid #1E293B",
                 borderRadius: 16,
                 padding: "24px",
                 boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
                 animation: "fadeInUp 0.6s ease-out forwards",
-                transition: "all 0.5s ease-in-out"
+                transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
             }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>{currentStep.icon}</div>
-                <h3 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 12px", color: "#F8FAFC" }}>{currentStep.title}</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                    <div style={{ fontSize: 32 }}>{currentStep.icon}</div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 10, letterSpacing: 2, color: "#3B82F6", textTransform: "uppercase", fontWeight: 800, marginBottom: 2 }}>Step {tutorialStep + 1} of 5</div>
+                        <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#F8FAFC" }}>{currentStep.title}</h3>
+                    </div>
+                </div>
                 <p style={{ fontSize: 15, color: "#94A3B8", lineHeight: 1.6, marginBottom: 24 }}>{currentStep.text}</p>
-                <ActionButton onClick={nextStep} text={tutorialStep === TUTORIAL_STEPS.length - 1 ? "Finish Tutorial" : "Next Step"} primary />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 6 }}>
+                        {TUTORIAL_STEPS.map((_, i) => (
+                            <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: i === tutorialStep ? "#3B82F6" : "#1E293B" }} />
+                        ))}
+                    </div>
+                    <ActionButton onClick={nextStep} text={tutorialStep === TUTORIAL_STEPS.length - 1 ? "Finish Tutorial" : "Next Step"} primary />
+                </div>
             </div>
         </div>
     );
 }
 
+const C = {
+    pageBg: "#F7F4EF", cardBg: "#FFFFFF", insetBg: "#EAE6DE",
+    border: "#D4CFC6", borderLight: "#E8E2D8",
+    text: "#1A1714", textSub: "#3D3830", textMuted: "#6B6358", textFaint: "#9C9188",
+    blue: "#1B4FD8", blueBg: "#EEF3FF", blueBorder: "#B8CBFF",
+    green: "#166534", greenBg: "#F0FDF4", greenBorder: "#86EFAC",
+    amber: "#92400E", amberBg: "#FFFBEB", amberBorder: "#FCD34D",
+    red: "#991B1B", redBg: "#FFF1F1", redBorder: "#FECACA",
+    purple: "#6D28D9", purpleBg: "#F5F3FF", purpleBorder: "#C4B5FD",
+    uberColor: "#B91C1C", busColor: "#1B4FD8",
+    track: "#E2DDD6", overlay: "rgba(26,23,20,0.78)",
+};
+
 function MockGameUI({ tutorialStep }) {
+    const isStep = (s) => tutorialStep === s;
+    const highlight = (s) => ({
+        zIndex: isStep(s) ? 100 : 1,
+        position: "relative",
+        transition: "all 0.5s ease",
+        opacity: (tutorialStep === -1 || isStep(s)) ? 1 : 0.25,
+        boxShadow: isStep(s) ? `0 0 0 6px ${C.blue}33, 0 20px 40px rgba(0,0,0,0.2)` : "none",
+        borderRadius: isStep(s) ? 12 : 0,
+        background: isStep(s) ? C.cardBg : "transparent"
+    });
+
     return (
-        <div style={{ padding: "80px 40px 40px", maxWidth: 900, margin: "0 auto", height: "100vh", position: "relative" }}>
-            {/* Header Area */}
-            <div style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                marginBottom: 60,
-                position: "relative"
+        <div style={{
+            background: C.pageBg,
+            width: "100%",
+            height: "100vh",
+            display: "flex",
+            flexDirection: "column",
+            fontFamily: "Georgia, serif",
+            color: C.text,
+            overflow: "hidden"
+        }}>
+            {/* 1. Top Bar - matches city1 planning screen */}
+            <div className="mobile-header" style={{ 
+                ...highlight(1), 
+                background: C.cardBg, 
+                borderBottom: `1px solid ${C.border}`, 
+                padding: "8px 16px", 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 14,
+                zIndex: isStep(1) ? 101 : 51 // Stay above overlay when highlighted
             }}>
-                <div style={{
-                    background: "#0F172A",
-                    border: "1px solid #1E293B",
-                    padding: "12px 24px",
-                    borderRadius: 8,
-                    textAlign: "right",
-                    transition: "all 0.5s ease-in-out",
-                    opacity: tutorialStep === undefined ? 1 : 0.4
-                }}>
-                    <div style={{ color: "#64748B", fontSize: 11, textTransform: "uppercase", marginBottom: 4 }}>Month</div>
-                    <div style={{ color: "#F8FAFC", fontSize: 20, fontWeight: 700 }}>January</div>
+                <div style={{ minWidth: 110 }}>
+                    <div style={{ fontSize: 9, letterSpacing: 2, color: C.blue, textTransform: "uppercase", fontWeight: 800 }}>City 1 · Smallville</div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: C.text, lineHeight: 1.1 }}>January</div>
+                </div>
+                <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3, fontSize: 9, color: C.textFaint }}>
+                        <span>Jan</span>
+                        <span style={{ color: C.blue, fontWeight: 700 }}>1/12</span>
+                        <span>Dec</span>
+                    </div>
+                    <div style={{ height: 5, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: "8.3%", background: C.blue, borderRadius: 3 }} />
+                    </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ position: "relative", width: 44, height: 44, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                         <div style={{ fontSize: 14, fontWeight: 800 }}>20</div>
+                         <div style={{ fontSize: 8, color: C.textFaint, textTransform: "uppercase" }}>sec</div>
+                    </div>
+                    <button style={{ background: C.green, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 800 }}>✓ End Turn</button>
                 </div>
             </div>
 
-            <div style={{ display: "flex", gap: 40, alignItems: "flex-start" }}>
-                {/* Sliders Area */}
-                <div style={{
-                    flex: 1,
-                    padding: 32,
-                    background: tutorialStep === 0 ? "rgba(30, 41, 59, 0.9)" : "rgba(15, 23, 42, 0.6)",
-                    border: tutorialStep === 0 ? "1px solid #3B82F6" : "1px solid #1E293B",
-                    borderRadius: 16,
-                    position: "relative",
-                    zIndex: tutorialStep === 0 ? 70 : 1,
-                    transition: "all 0.5s ease-in-out",
-                    boxShadow: tutorialStep === 0 ? "0 0 30px rgba(59, 130, 246, 0.3)" : "none"
-                }}>
-                    <h4 style={{ margin: "0 0 24px", color: "#F8FAFC", fontSize: 16 }}>Set Policy</h4>
-                    {[
-                        { label: "Uber Tax", val: 40, color: "#3B82F6" },
-                        { label: "Bus Subsidy", val: 70, color: "#10B981" }
-                    ].map((slider, i) => (
-                        <div key={i} style={{ marginBottom: 32 }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-                                <span style={{ fontSize: 14, color: "#94A3B8" }}>{slider.label}</span>
-                                <span style={{ fontSize: 14, color: slider.color, fontWeight: 600 }}>{slider.val}%</span>
-                            </div>
-                            <div style={{ height: 6, background: "#1E293B", borderRadius: 3, position: "relative" }}>
-                                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${slider.val}%`, background: slider.color, borderRadius: 3 }} />
-                                <div style={{ position: "absolute", left: `${slider.val}%`, top: "50%", transform: "translate(-50%, -50%)", width: 16, height: 16, background: "white", borderRadius: "50%", border: `2px solid ${slider.color}` }} />
-                            </div>
-                        </div>
-                    ))}
+            {/* 2. Performance Header */}
+            <div style={{ ...highlight(0), background: C.cardBg, borderBottom: `1px solid ${C.border}`, padding: "0" }}>
+                <div className="mobile-grade-bar" style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
+                    <div style={{ background: C.green, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>B+</div>
+                    <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score 68/100</div>
+                    <div style={{ flex: 1 }} />
+                    <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: Grade B or Higher to Advance</div>
                 </div>
-
-                {/* Metrics Area */}
-                <div style={{
-                    flex: 1,
-                    padding: 32,
-                    background: tutorialStep === 1 ? "rgba(30, 41, 59, 0.9)" : "rgba(15, 23, 42, 0.6)",
-                    border: tutorialStep === 1 ? "1px solid #3B82F6" : "1px solid #1E293B",
-                    borderRadius: 16,
-                    position: "relative",
-                    zIndex: tutorialStep === 1 ? 70 : 1,
-                    transition: "all 0.5s ease-in-out",
-                    boxShadow: tutorialStep === 1 ? "0 0 30px rgba(59, 130, 246, 0.3)" : "none"
-                }}>
-                    <h4 style={{ margin: "0 0 24px", color: "#F8FAFC", fontSize: 16 }}>Live Preview</h4>
-                    {[
-                        { label: "Happiness", val: 82, color: "#10B981" },
-                        { label: "Mobility", val: 65, color: "#3B82F6" },
-                        { label: "Congestion", val: 28, color: "#EF4444" },
-                        { label: "Budget", val: 100, color: "#10B981", display: "$12.0M" }
-                    ].map((metric, i) => (
-                        <div key={i} style={{
-                            marginBottom: metric.label === "Budget" ? 0 : 24,
-                            transform: tutorialStep === 2 && metric.label === "Budget" ? "scale(1.05)" : "scale(1)",
-                            transition: "all 0.3s ease"
-                        }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-                                <span style={{ fontSize: 13, color: "#94A3B8" }}>{metric.label}</span>
-                                <span style={{ fontSize: 13, color: metric.color, fontWeight: 600 }}>{metric.display || (metric.val + "%")}</span>
-                            </div>
-                            <div style={{ height: 10, background: "#1E293B", borderRadius: 5, overflow: "hidden" }}>
-                                <div style={{ height: "100%", width: `${metric.val}%`, background: metric.color }} />
-                            </div>
+                <div className="mobile-grade-bar-row2" style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
+                        <div style={{ width: "65%", background: C.green }} />
+                        <div style={{ width: "5%", background: C.amber }} />
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: 2, background: C.green }} />
+                            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>Happiness <span style={{ color: C.green }}>+65</span></span>
                         </div>
-                    ))}
+                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: 2, background: C.amber }} />
+                            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>Budget <span style={{ color: C.amber }}>+3</span></span>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            {/* 3. Main 3-Column Layout */}
+            <div className="mobile-stack" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                {/* LEFT: Policy */}
+                <div className="mobile-full-width" style={{ ...highlight(3), width: 272, flexShrink: 0, padding: "14px 16px", borderRight: `1px solid ${C.border}`, pointerEvents: "none" }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>Set Policy</div>
+                    {/* Uber Tax Mock */}
+                    <div style={{ ...highlight(3), marginBottom: 20 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                             <span style={{ fontSize: 13, fontWeight: 600 }}>Uber / AV Tax</span>
+                             <span style={{ fontSize: 18, fontWeight: 700, color: C.red }}>0%</span>
+                        </div>
+                        <div style={{ height: 4, background: C.track, borderRadius: 2, position: "relative", opacity: 0.5 }}>
+                             <div style={{ position: "absolute", left: 0, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, background: C.textMuted, borderRadius: "50%" }} />
+                        </div>
+                        <div style={{ fontSize: 9, color: C.textFaint, marginTop: 6 }}>⚠️ Locked for January & February</div>
+                    </div>
+                    {/* Bus Subsidy Mock */}
+                    <div style={{ ...highlight(3), marginBottom: 20 }}>
+                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                              <span style={{ fontSize: 13, fontWeight: 600 }}>Bus Fare Subsidy</span>
+                              <span style={{ fontSize: 18, fontWeight: 700, color: C.blue }}>20%</span>
+                         </div>
+                         <div style={{ height: 4, background: C.track, borderRadius: 2, position: "relative" }}>
+                              <div style={{ position: "absolute", left: "20%", top: "50%", transform: "translate(-50%, -50%)", width: 14, height: 14, background: "#fff", border: `2px solid ${C.blue}`, borderRadius: "50%" }} />
+                         </div>
+                    </div>
+                    {/* Budget Delta Mock */}
+                    <div style={{ padding: "10px 12px", background: C.greenBg, border: `1px solid ${C.greenBorder}`, borderRadius: 8, display: "flex", justifyContent: "space-between" }}>
+                         <span style={{ fontSize: 11, fontWeight: 600, color: C.textMuted }}>Est. budget change</span>
+                         <span style={{ fontSize: 16, fontWeight: 800, color: C.green }}>+0.12M</span>
+                    </div>
+                </div>
+
+                {/* CENTER: Road Visualization */}
+                <div className="mobile-road-height" style={{ flex: 1, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                    <div style={{ flex: 1, position: "relative" }}>
+                        <CityRoadScene cityLevel={1} uberTax={0} busSubsidy={20} congestion={42} />
+                    </div>
+                    {/* Advisor Strip at bottom of scene */}
+                    <div style={{ 
+                        ...highlight(4), 
+                        padding: "10px 14px", 
+                        background: "rgba(255,255,255,0.93)", 
+                        backdropFilter: "blur(4px)", 
+                        borderTop: `1px solid ${C.border}`,
+                        maxHeight: "90px",
+                        overflow: "hidden"
+                    }}>
+                        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                            <span style={{ fontSize: 20 }}>🧑‍💼</span>
+                            <div>
+                                <div style={{ fontSize: 10, fontWeight: 800, color: C.blue, letterSpacing: 1, textTransform: "uppercase", marginBottom: 2 }}>Maya · Advisor</div>
+                                <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.4 }}>Smallville's roads are getting busy. We need to find a balance between revenue and mobility.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* RIGHT: Metrics */}
+                <div className="mobile-full-width" style={{ ...highlight(2), width: 272, flexShrink: 0, padding: "14px 16px", borderLeft: `1px solid ${C.border}`, pointerEvents: "none" }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 14 }}>Live Preview</div>
+                    {[
+                        { label: "Happiness", val: 65, color: C.green, target: "Goal: 65+" },
+                        { label: "Mobility", val: 58, color: C.blue, target: "Target: 55–75" },
+                        { label: "Congestion", val: 42, color: C.amber, target: "Goal: under 40" }
+                    ].map((m, i) => (
+                        <div key={i} style={{ marginBottom: 12 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: C.textSub, textTransform: "uppercase" }}>{m.label}</span>
+                                <span style={{ fontSize: 16, fontWeight: 700, color: m.color }}>{m.val}</span>
+                            </div>
+                            <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+                                <div style={{ height: "100%", width: `${m.val}%`, background: m.color }} />
+                            </div>
+                            <div style={{ fontSize: 9, color: C.textFaint, marginTop: 2 }}>{m.target}</div>
+                        </div>
+                    ))}
+                    <div style={{ marginTop: 14 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 3 }}>
+                             <span style={{ fontSize: 10, fontWeight: 700, color: C.textSub, textTransform: "uppercase" }}>Budget</span>
+                             <span style={{ fontSize: 16, fontWeight: 700, color: C.green }}>$12.0M</span>
+                        </div>
+                        <div style={{ height: 6, background: C.track, borderRadius: 3, overflow: "hidden" }}>
+                             <div style={{ height: "100%", width: "100%", background: C.green }} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {/* Extra padding at bottom to handle global button overlap */}
+            <div style={{ height: 100, flexShrink: 0 }} />
         </div>
     );
 }
 
 const TUTORIAL_STEPS = [
     {
-        icon: "🎮",
-        title: "Policy Tools",
-        text: "Use these sliders to set your city's policies. Taxing Uber generates revenue but can hurt mobility. Subsidizing buses costs money but helps people move.",
-        spotlight: { top: "58%", left: "28%", width: "420px", height: "300px", transform: "translate(-50%, -50%)" },
-        contentPosition: { top: "50%", left: "68%", transform: "translateY(-50%)" }
+        icon: "🏆",
+        title: "The Mission",
+        text: "This is your performance health. Your goal is to reach Grade B (65+ points) by December. Happiness and Budget efficiency both contribute to your score.",
+        contentPosition: { top: "135px", left: "50%", transform: "translateX(-50%)" }
+    },
+    {
+        icon: "⏰",
+        title: "Monthly Cycle",
+        text: "Smallville waits for no one! Each month gives you 20 seconds to set policy. Watch the timer—once it hits zero, your choices are locked and the month ends.",
+        contentPosition: { top: "75px", left: "50%", transform: "translateX(-50%)" }
     },
     {
         icon: "📊",
-        title: "Metric Bars",
-        text: "These gauges show the health of the city. Keep an eye on Happiness, Mobility, and Congestion. If they drop too low, your term might end early! Keep an eye on your funds. Implementing policies costs money, but some taxes can help you generate revenue. Don't let it hit zero!",
-        spotlight: { top: "58%", left: "72%", width: "420px", height: "300px", transform: "translate(-50%, -50%)" },
-        contentPosition: { top: "50%", left: "5%", transform: "translateY(-50%)" }
+        title: "City Health",
+        text: "Monitor these gauges constantly. Happiness is your primary score driver, but it depends on keeping Mobility high and Congestion low.",
+        contentPosition: { top: "50%", right: "290px", transform: "translateY(-50%)" }
     },
     {
-        icon: "⚖️",
-        title: "Balance is Key",
-        text: "Your goal is to survive the year by balancing the budget while keeping citizens happy and the city moving. Good luck, Director!",
-        spotlight: { top: "50%", left: "50%", width: "0px", height: "0px", transform: "translate(-50%, -50%)" },
-        contentPosition: { top: "50%", left: "50%", transform: "translate(-50%, -50%)" }
+        icon: "🎮",
+        title: "Policy Sliders",
+        text: "These are your primary tools. Taxing Uber (top) generates revenue and cuts congestion, while Subsidizing Buses (bottom) increases mobility but costs money. Balance these to keep the city thriving!",
+        contentPosition: { top: "40%", left: "290px" }
+    },
+    {
+        icon: "🧑‍💼",
+        title: "Advisor Maya",
+        text: "Listen to Maya! She provides expert context and feedback on your policy decisions at the bottom of the screen. Her hints change every month.",
+        contentPosition: { bottom: "220px", left: "50%", transform: "translateX(-50%)" }
     }
 ];
