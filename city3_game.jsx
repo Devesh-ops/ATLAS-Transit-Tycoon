@@ -44,8 +44,8 @@ const SEASONS = {
   peakUberDemandBoost: 8,
   peakBaselineMobilityPenalty: 5,
   // CHANGE 2: AC collapse mechanic
-  acCollapseThreshold: 0.25,
-  collapseMultiplier: 2.5,
+  acCollapseThreshold: 0.25,    // AC level (0–1) below this triggers collapse in extreme weather
+  collapseMultiplier: 2.0,      // how much worse the penalty is during collapse
 };
 
 const SIMULATION = {
@@ -115,7 +115,7 @@ const ADVISOR = {
   gameIntro: "Welcome to Gilded Hollow — a city with a deep income divide. Here, Uber is primarily a luxury for the wealthy. Taxing it provides the progressive revenue we need to build a premium, climate-controlled bus system for everyone. Your goal is to use this redistributed wealth to bridge the equity gap and keep the city moving. End Turn when you're ready.",
   monthStartHints: [
     "January 🥶 — Deep winter. Cold buses are empty. Wealthy riders are the primary users of Uber — taxing them now funds bus heating for everyone.",
-    "Still cold. In this city, wealthy riders have 2.4x higher price sensitivity to Uber — they'll feel the tax most.",
+    "Still cold. In this city, wealthy riders rely on Uber far more than poor riders — they lose much more mobility from the tax.",
     "Winter easing. AC costs drop. Use this chance to maintain taxes on the rich and channel that revenue into bus subsidies.",
     "Spring — mild temperatures. Buses are popular. A good time to keep Uber taxes high to build your budget.",
     "Late spring. Temperatures climbing. The wealthy shift to Uber even more in the heat — tax them to fund the AC.",
@@ -183,7 +183,7 @@ const CITY_INTRO_SLIDES = [
     text: "Use Uber tax revenue as a social tool. Reinvest those funds into bus subsidies and climate control to ensure the city works for everyone.",
     bullets: [
       { icon: "⚖️", text: "Equity is now 35% of your final score" },
-      { icon: "🚕", text: "Rich price elasticity is 2.4x higher than poor" },
+      { icon: "🚕", text: "Wealthy riders lose far more mobility from Uber taxes — they rely on Uber, the poor rely on buses" },
       { icon: "🚌", text: "Uber taxes fund the bus for lower-income riders" }
     ],
     buttonText: "Take Office",
@@ -221,7 +221,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const poorBusEffect = busSubsidy * bus.poorMobilityGainPerPercent;
 
   // CHANGE 2: AC collapse mechanic — extreme heat/cold without AC is 2.5× worse
-  const collapseActive = tempDiscomfort > 0.6 && acMitigation < SEASONS.acCollapseThreshold;
+  const collapseActive = tempDiscomfort > 0.6 && (acLevel / 100) < SEASONS.acCollapseThreshold;
   const collapseMulti = collapseActive ? SEASONS.collapseMultiplier : 1.0;
   const busTempPenalty = tempDiscomfort * SEASONS.peakBusMobilityPenalty * (1 - acMitigation) * collapseMulti;
   const baselineTempPenalty = tempDiscomfort * SEASONS.peakBaselineMobilityPenalty;
@@ -346,7 +346,7 @@ function diagnoseRun(history, finalBudget) {
     failures.push({
       icon: "🚕", color: C.red, bg: C.redBg, border: C.redBorder,
       title: "Uber tax suppressed wealthy mobility",
-      body: `Your average Uber tax was ${Math.round(avgU)}%. In Gilded Hollow, wealthy riders are 2.4x more price-sensitive—their average mobility fell to ${Math.round(avgRich)}. While this funded the bus, it may have over-taxed high-value city movement. Worst month: ${MONTHS[worst.idx]}.`,
+      body: `Your average Uber tax was ${Math.round(avgU)}%. In Gilded Hollow, wealthy riders rely on Uber far more than the poor — their average mobility fell to ${Math.round(avgRich)}. While taxing the rich funds the bus, excessive taxation suppresses overall city movement. Worst month: ${MONTHS[worst.idx]}.`,
       research: "Optimal integrated transport policy: when ride-hailing is primarily a luxury service, high taxes on the wealthy can fund high-quality public transit for the poor, but excessive taxation may reduce total city economic activity if mobility falls too far.",
     });
   }
@@ -365,7 +365,7 @@ function diagnoseRun(history, finalBudget) {
       icon: "⚖️", color: C.purple, bg: C.purpleBg, border: C.purpleBorder,
       title: "Persistent equity gap — two-tier city",
       body: `Average equity score was ${Math.round(avgE)} — a sustained rich/poor mobility gap. Rich averaged ${Math.round(avgRich)} mobility, poor averaged ${Math.round(avgPoor)}. Uber tax revenue was not adequately recycled into buses and AC.`,
-      research: "The research finding: lower-income price elasticity is ~2.4× higher than wealthy. Uniform revenue instruments without targeted reinvestment widen the gap.",
+      research: "In Gilded Hollow, wealthy riders are the primary Uber users — they absorb Uber taxes most. But without reinvesting that revenue into buses, the poor remain stuck. Cross-subsidy is the mechanism that closes the gap.",
     });
   }
   if (avgC > 65 && avgU < 25) {
@@ -846,7 +846,7 @@ function StructuralBanner({ items }) {
 
 function computeWarnings(uberTax, busSubsidy, acLevel, live, roundIndex, budgetFraction) {
   const w = [];
-  if (uberTax > 60) w.push("Tax above 60% — poor riders hit the hardest (2.4× more elastic).");
+  if (uberTax > 60) w.push("Tax above 60% — wealthy mobility falling sharply. Boost bus subsidy to keep the poor moving too.");
   if (Math.abs(SEASONS.tempIndex[roundIndex]) > 0.6 && acLevel < 25) w.push("Extreme weather + AC below 25% — bus collapse risk.");
   if (live.equityScore < 45) w.push("Income equity critically low — poor mobility lagging far behind rich.");
   if (live.monthlyDelta < -0.3 && budgetFraction < 0.35) w.push("Costs exceed revenue — budget draining.");
