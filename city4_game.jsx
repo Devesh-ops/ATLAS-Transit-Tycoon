@@ -38,7 +38,9 @@ const CITY_META = {
 // bus subsidy benefit because buses feel unsafe. This is fixed — not a player slider.
 // Source: Christensen & Osman (2025) — women respond far more to Uber price changes
 // than men precisely because buses are not a safe substitute for them.
-const WOMEN_BUS_ACCESS_MULTIPLIER = 0.15;
+// Women receive a reduced fraction of bus subsidy benefit due to safety barriers.
+// 0.25 = still a significant structural barrier, but buses can still meaningfully help women.
+const WOMEN_BUS_ACCESS_MULTIPLIER = 0.25;
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const TIMER = { monthDuration: 40, warningAt: 8, endingDuration: 1200 };
@@ -50,8 +52,8 @@ const SEASONS = {
   peakBusMobilityPenalty: 20,
   peakUberDemandBoost: 9,
   peakBaselineMobilityPenalty: 5,
-  acCollapseThreshold: 0.25,
-  collapseMultiplier: 2.5,
+  acCollapseThreshold: 0.25,    // AC level (0–1) below this triggers collapse in extreme weather
+  collapseMultiplier: 2.0,      // how much worse the penalty is during collapse
 };
 
 // ============================================================
@@ -79,8 +81,8 @@ const SIMULATION = {
   baseline: { congestionLevel: 52 },
 
   uber: {
-    // Price elasticity: women ~2.4× more elastic than men (Cairo finding)
-    // Poor ~2.4× more elastic than rich (City 3 finding)
+    // Paper finding: women are ~2.5× more price-elastic than men for ride-hailing.
+    // City 3 finding: wealthy riders are far more Uber-dependent than the poor.
     // Loss curves per group at each tax zone
     congestionReductionPerPercent: 0.38,
     revenueRate: 0.0018,
@@ -88,8 +90,8 @@ const SIMULATION = {
 
   bus: {
     // Linear gains — poor benefit much more from bus subsidies than rich (equity slider)
-    poorMenGain: 0.28, poorWomenBaseGain: 0.28,
-    richMenGain: 0.10, richWomenBaseGain: 0.10,
+    poorMenGain: 0.35, poorWomenBaseGain: 0.35,   // poor benefit strongly from bus subsidies
+    richMenGain: 0.06, richWomenBaseGain: 0.06,   // rich have alternatives; buses barely shift them
     congestionOffsetPerPercent: 0.10,  // low: buses reduce congestion only slightly
     costRate: 0.0013,
   },
@@ -102,7 +104,7 @@ const SIMULATION = {
   // Gender barrier parameters (structural — not player-adjustable)
   gender: {
     // Women's Uber elasticity multiplier vs men (research: Cairo finding)
-    womenUberElasticityMultiplier: 1.50,
+    womenUberElasticityMultiplier: 1.20,  // women more elastic than men, but kept moderate for playability
     // Compounded weather penalty for women: unsafe + uncomfortable = doubly repellent
     womenWeatherPenaltyFraction: 0.30,
   },
@@ -118,7 +120,7 @@ const SIMULATION = {
     // Income gap penalty
     incomePenaltyPerGapPoint: 1.4,
     // Gender gap penalty
-    genderPenaltyPerGapPoint: 1.6,
+    genderPenaltyPerGapPoint: 1.2,  // reduced from 1.6 — gap is still penalised but B is achievable
     min: 0, max: 100,
   },
 
@@ -263,7 +265,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const acMitigation = Math.pow(acLevel / 100, ac.mitigationExponent);
 
   // ── SEASONAL EFFECTS ──────────────────────────────────────────────────
-  const collapseActive = tempDiscomfort > 0.6 && acMitigation < SEASONS.acCollapseThreshold;
+  const collapseActive = tempDiscomfort > 0.6 && (acLevel / 100) < SEASONS.acCollapseThreshold;
   const collapseMulti = collapseActive ? SEASONS.collapseMultiplier : 1.0;
   const busTempPenalty = tempDiscomfort * SEASONS.peakBusMobilityPenalty * (1 - acMitigation) * collapseMulti;
   const baselineTempPenalty = tempDiscomfort * SEASONS.peakBaselineMobilityPenalty;

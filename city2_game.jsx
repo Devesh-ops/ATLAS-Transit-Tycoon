@@ -42,8 +42,8 @@ const SEASONS = {
   peakBusMobilityPenalty: 22,   // max mobility points lost from bus discomfort
   peakUberDemandBoost: 8,       // extra congestion from weather-driven Uber use
   peakBaselineMobilityPenalty: 5, // mobility drag that exists regardless of AC
-  acCollapseThreshold: 0.25,    // AC mitigation below this triggers collapse in extreme weather
-  collapseMultiplier: 2.5,      // how much worse the penalty is during collapse
+  acCollapseThreshold: 0.25,    // AC level (0–1) below this triggers collapse in extreme weather
+  collapseMultiplier: 2.0,      // how much worse the penalty is during collapse
 };
 
 const SIMULATION = {
@@ -243,7 +243,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const busEffect = busSubsidy * bus.mobilityGainPerPercent;
 
   // AC collapse: extreme weather + AC below threshold → 2.5× penalty
-  const collapseActive = tempDiscomfort > 0.6 && acMitigation < SEASONS.acCollapseThreshold;
+  const collapseActive = tempDiscomfort > 0.6 && (acLevel / 100) < SEASONS.acCollapseThreshold;
   const collapseMulti = collapseActive ? SEASONS.collapseMultiplier : 1.0;
   const busTempPenalty = tempDiscomfort * SEASONS.peakBusMobilityPenalty * (1 - acMitigation) * collapseMulti;
   const baselineTempPenalty = tempDiscomfort * SEASONS.peakBaselineMobilityPenalty;
