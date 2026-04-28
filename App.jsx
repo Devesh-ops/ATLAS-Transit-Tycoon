@@ -228,6 +228,55 @@ function App() {
                     >
                         Give Feedback
                     </a>
+                    <div style={{ position: 'relative' }}
+                        onMouseEnter={e => e.currentTarget.querySelector('.papers-dropdown').style.display = 'flex'}
+                        onMouseLeave={e => e.currentTarget.querySelector('.papers-dropdown').style.display = 'none'}
+                    >
+                        <button
+                            style={{
+                                padding: '10px 20px',
+                                background: '#0F766E',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}
+                        >
+                            📄 Research Papers
+                        </button>
+                        <div className="papers-dropdown" style={{
+                            display: 'none',
+                            position: 'absolute',
+                            bottom: '110%',
+                            left: 0,
+                            flexDirection: 'column',
+                            gap: '6px',
+                            background: 'white',
+                            border: '1px solid #D1D5DB',
+                            borderRadius: '8px',
+                            padding: '8px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            minWidth: '280px',
+                            zIndex: 1001
+                        }}>
+                            <a href="/Demand_for_Mobility_Christensen_Osman-Sep2025.pdf" target="_blank" rel="noreferrer"
+                                style={{ padding: '8px 12px', borderRadius: '6px', textDecoration: 'none', color: '#1F2937', fontSize: '13px', background: '#F9FAFB', display: 'block' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#F0FDF4'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#F9FAFB'}
+                            >
+                                Demand for Mobility — Christensen & Osman (2025)
+                            </a>
+                            <a href="/COS-Weathering-the-Ride.pdf" target="_blank" rel="noreferrer"
+                                style={{ padding: '8px 12px', borderRadius: '6px', textDecoration: 'none', color: '#1F2937', fontSize: '13px', background: '#F9FAFB', display: 'block' }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#F0FDF4'}
+                                onMouseLeave={e => e.currentTarget.style.background = '#F9FAFB'}
+                            >
+                                Weathering the Ride — COS
+                            </a>
+                        </div>
+                    </div>
                 </div>
             )}
 
