@@ -209,25 +209,6 @@ function App() {
                     >
                         About
                     </button>
-                    <a
-                        href="https://forms.gle/gXmrN1UNKQLN1uaQ6"
-                        target="_blank"
-                        rel="noreferrer"
-                        title="Opens a Google Form in a new tab to give feedback."
-                        style={{
-                            padding: '10px 20px',
-                            background: '#E5E5E5',
-                            color: '#555',
-                            border: '1px solid #CCC',
-                            textDecoration: 'none',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontWeight: 'bold',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
-                        }}
-                    >
-                        Feedback
-                    </a>
                 </div>
             )}
 
