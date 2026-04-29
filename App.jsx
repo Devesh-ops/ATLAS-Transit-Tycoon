@@ -95,9 +95,10 @@ function App() {
                     /* Floating Global Controls */
                     .global-controls-container {
                         bottom: 12px !important;
-                        left: 12px !important;
+                        right: 12px !important;
+                        left: auto !important;
                         flex-direction: column !important;
-                        align-items: flex-start !important;
+                        align-items: flex-end !important;
                         gap: 8px !important;
                     }
                 }
@@ -176,7 +177,7 @@ function App() {
                     style={{
                         position: 'fixed',
                         bottom: '20px',
-                        right: '20px',
+                        left: '20px',
                         zIndex: 1000,
                         padding: '10px 20px',
                         background: '#1E293B',
@@ -190,20 +191,20 @@ function App() {
                 </button>
             )}
 
-            {/* Global floating bottom-left controls */}
+            {/* Global floating bottom-right controls */}
             {!hideGlobalControls && (
-                <div className="global-controls-container" style={{ position: 'fixed', bottom: '20px', left: '20px', zIndex: 1000, display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <div className="global-controls-container" style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 1000, display: 'flex', gap: '10px', alignItems: 'center' }}>
                     <button
                         onClick={() => setIsAboutOpen(true)}
                         style={{
                             padding: '10px 20px',
-                            background: '#F5F5F5',
-                            color: '#333',
+                            background: '#E5E5E5',
+                            color: '#555',
                             border: '1px solid #CCC',
                             borderRadius: '8px',
                             cursor: 'pointer',
                             fontWeight: 'bold',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
                         }}
                     >
                         About
@@ -212,71 +213,21 @@ function App() {
                         href="https://forms.gle/gXmrN1UNKQLN1uaQ6"
                         target="_blank"
                         rel="noreferrer"
-                        title="Opens a Google Form in a new tab to give feedback. The game will be paused in the meantime."
-                        onClick={() => setIsAboutOpen(true)}
+                        title="Opens a Google Form in a new tab to give feedback."
                         style={{
                             padding: '10px 20px',
-                            background: '#6D28D9',
-                            color: 'white',
-                            border: 'none',
+                            background: '#E5E5E5',
+                            color: '#555',
+                            border: '1px solid #CCC',
                             textDecoration: 'none',
                             borderRadius: '8px',
                             cursor: 'pointer',
                             fontWeight: 'bold',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
                         }}
                     >
-                        Give Feedback
+                        Feedback
                     </a>
-                    <div style={{ position: 'relative' }}
-                        onMouseEnter={e => e.currentTarget.querySelector('.papers-dropdown').style.display = 'flex'}
-                        onMouseLeave={e => e.currentTarget.querySelector('.papers-dropdown').style.display = 'none'}
-                    >
-                        <button
-                            style={{
-                                padding: '10px 20px',
-                                background: '#0F766E',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                fontWeight: 'bold',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                            }}
-                        >
-                            📄 Research Papers
-                        </button>
-                        <div className="papers-dropdown" style={{
-                            display: 'none',
-                            position: 'absolute',
-                            bottom: '110%',
-                            left: 0,
-                            flexDirection: 'column',
-                            gap: '6px',
-                            background: 'white',
-                            border: '1px solid #D1D5DB',
-                            borderRadius: '8px',
-                            padding: '8px',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                            minWidth: '280px',
-                            zIndex: 1001
-                        }}>
-                            <a href="/Demand_for_Mobility_Christensen_Osman-Sep2025.pdf" target="_blank" rel="noreferrer"
-                                style={{ padding: '8px 12px', borderRadius: '6px', textDecoration: 'none', color: '#1F2937', fontSize: '13px', background: '#F9FAFB', display: 'block' }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#F0FDF4'}
-                                onMouseLeave={e => e.currentTarget.style.background = '#F9FAFB'}
-                            >
-                                Demand for Mobility — Christensen & Osman (2025)
-                            </a>
-                            <a href="/COS-Weathering-the-Ride.pdf" target="_blank" rel="noreferrer"
-                                style={{ padding: '8px 12px', borderRadius: '6px', textDecoration: 'none', color: '#1F2937', fontSize: '13px', background: '#F9FAFB', display: 'block' }}
-                                onMouseEnter={e => e.currentTarget.style.background = '#F0FDF4'}
-                                onMouseLeave={e => e.currentTarget.style.background = '#F9FAFB'}
-                            >
-                                Weathering the Ride — COS
-                            </a>
-                        </div>
-                    </div>
                 </div>
             )}
 

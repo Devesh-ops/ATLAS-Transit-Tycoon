@@ -13,7 +13,36 @@ export function AboutUsContent() {
         The cities you play through simulate the very real, structural challenges urban planners face: from unchecked congestion to structural inequality and access barriers that simple technological fixes cannot solve alone.
       </p>
 
-      <div style={{ marginTop: '30px', padding: '20px', background: '#F5F3FF', borderRadius: '12px', border: '1px solid #C4B5FD' }}>
+      <div style={{ marginTop: '24px', padding: '18px 20px', background: '#F0FDF4', borderRadius: '12px', border: '1px solid #86EFAC' }}>
+        <h3 style={{ margin: '0 0 8px', color: '#166534', fontSize: '15px' }}>📄 Research Papers</h3>
+        <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#3D3830' }}>
+          This game is based on the following academic research on urban mobility and transport equity.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <a
+            href="/Demand_for_Mobility_Christensen_Osman-Sep2025.pdf"
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'block', padding: '10px 14px', background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: '8px', textDecoration: 'none', color: '#1A1714', fontSize: '13px', fontWeight: 600 }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#DCFCE7'}
+            onMouseLeave={(e) => e.currentTarget.style.background = '#FFFFFF'}
+          >
+            Demand for Mobility — Christensen &amp; Osman (2025) ↗
+          </a>
+          <a
+            href="/COS-Weathering-the-Ride.pdf"
+            target="_blank"
+            rel="noreferrer"
+            style={{ display: 'block', padding: '10px 14px', background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: '8px', textDecoration: 'none', color: '#1A1714', fontSize: '13px', fontWeight: 600 }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#DCFCE7'}
+            onMouseLeave={(e) => e.currentTarget.style.background = '#FFFFFF'}
+          >
+            Weathering the Ride — Christensen, Osman &amp; Svane (2023) ↗
+          </a>
+        </div>
+      </div>
+
+      <div style={{ marginTop: '20px', padding: '18px 20px', background: '#F5F3FF', borderRadius: '12px', border: '1px solid #C4B5FD' }}>
         <h3 style={{ margin: '0 0 10px', color: '#6D28D9', fontSize: '16px' }}>Help Us Improve!</h3>
         <p style={{ margin: '0 0 15px', fontSize: '14px', color: '#3D3830' }}>
           We're constantly refining our simulation models and gameplay mechanics. We would love to hear your thoughts.

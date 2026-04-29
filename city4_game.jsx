@@ -84,8 +84,8 @@ const SIMULATION = {
     // Paper finding: women are ~2.5× more price-elastic than men for ride-hailing.
     // City 3 finding: wealthy riders are far more Uber-dependent than the poor.
     // Loss curves per group at each tax zone
-    congestionReductionPerPercent: 0.38,
-    revenueRate: 0.0018,
+    congestionReductionPerPercent: 0.28,  // reduced: Uber tax alone can't solve congestion
+    revenueRate: 0.0010,                  // reduced: max Uber tax no longer creates huge surplus
   },
 
   bus: {
@@ -267,7 +267,9 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   // ── SEASONAL EFFECTS ──────────────────────────────────────────────────
   const collapseActive = tempDiscomfort > 0.6 && (acLevel / 100) < SEASONS.acCollapseThreshold;
   const collapseMulti = collapseActive ? SEASONS.collapseMultiplier : 1.0;
-  const busTempPenalty = tempDiscomfort * SEASONS.peakBusMobilityPenalty * (1 - acMitigation) * collapseMulti;
+  // Extreme-weather multiplier: AC matters 1.6× more in Jan/Feb/Jul/Aug/Dec (only when not already in collapse)
+  const weatherMultiplier = (!collapseActive && tempDiscomfort >= 0.75) ? 1.6 : 1.0;
+  const busTempPenalty = tempDiscomfort * SEASONS.peakBusMobilityPenalty * (1 - acMitigation) * collapseMulti * weatherMultiplier;
   const baselineTempPenalty = tempDiscomfort * SEASONS.peakBaselineMobilityPenalty;
   const weatherUberBoost = tempDiscomfort * SEASONS.peakUberDemandBoost * (1 - acMitigation * 0.5);
 
@@ -595,7 +597,7 @@ function calculateProjection(history, currentBudget) {
   const happinessPts = smartH * weights.happiness;
   const genderEqPts = smartGE * weights.genderEquity;
   const incomeEqPts = smartIE * weights.incomeEquity;
-  const budgetPts = projectedBudgetFrac * 100 * weights.budget;
+  const budgetPts = Math.min(100, projectedBudgetFrac * 100) * weights.budget;
   
   const projectedScore = happinessPts + genderEqPts + incomeEqPts + budgetPts;
   const grade = getGrade(projectedScore);
@@ -615,28 +617,37 @@ function calculateProjection(history, currentBudget) {
   };
 }
 
+function getPolicyStatus(score) {
+  if (score >= 80) return { text: "On track", color: C.green };
+  if (score >= 65) return { text: "Stable", color: C.blue };
+  if (score >= 50) return { text: "At risk", color: C.amber };
+  return { text: "In trouble", color: C.red };
+}
+
 function PerformanceHeader({ projection, goalGrade = "B" }) {
+  const status = getPolicyStatus(projection.score);
+  const weakest = projection.breakdown.length > 0
+    ? [...projection.breakdown].sort((a, b) => a.points - b.points)[0]
+    : null;
   return (
     <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-      {/* Row 1: grade badge + score + pts to next + goal */}
+      {/* Row 1: grade badge + qualitative status + weakness + goal */}
       <div className="mobile-grade-bar" style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
-          <InfoTip text="Predicts your final year-end grade based on your current score and recent performance trends." />
+          <InfoTip text="Estimates your trajectory based on recent trends. Exact scores shown at year end." />
         </div>
         <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
           {projection.grade.grade}
         </div>
-        <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score {Math.round(projection.score)}/100</div>
-        {projection.nextGrade ? (
-          <div style={{ fontSize: 11, color: C.textFaint }}>· {projection.pointsToNext} pts to <span style={{ color: projection.nextGrade.color, fontWeight: 800 }}>{projection.nextGrade.grade}</span></div>
-        ) : (
-          <div style={{ fontSize: 11, color: C.textFaint }}>· Top grade</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: status.color }}>Status: {status.text}</div>
+        {weakest && (
+          <div style={{ fontSize: 11, color: C.textFaint }}>· Main weakness: <span style={{ color: weakest.color, fontWeight: 700 }}>{weakest.label}</span></div>
         )}
         <div style={{ flex: 1 }} />
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: Grade {goalGrade} or Higher to Win</div>
       </div>
-      {/* Row 2: segmented bar + component breakdown */}
+      {/* Row 2: segmented bar + dimension labels only (no exact points) */}
       <div className="mobile-grade-bar-row2" style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
           {projection.breakdown.map((b) => (
@@ -646,7 +657,7 @@ function PerformanceHeader({ projection, goalGrade = "B" }) {
         {projection.breakdown.map((b) => (
           <div key={b.key || b.label} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             <div style={{ width: 8, height: 8, borderRadius: 2, background: b.color }} />
-            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>{b.label} <span style={{ color: b.color }}>+{Math.max(0, b.points || 0).toFixed(0)}</span></span>
+            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>{b.label}</span>
           </div>
         ))}
       </div>
@@ -1357,7 +1368,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance, 
     avgH * weights.happiness +
     avgGE * weights.genderEquity +
     avgIE * weights.incomeEquity +
-    budFrac * 100 * weights.budget;
+    Math.min(100, budFrac * 100) * weights.budget;
   const finalScore = Math.min(100, Math.round(rawScore));
   const grade = getGrade(scoreless ? 0 : finalScore);
   const { failures, worstMonth, worstHappiness } = diagnoseRun(history, finalBudget);

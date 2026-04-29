@@ -245,7 +245,9 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   // AC collapse: extreme weather + AC below threshold → 2.5× penalty
   const collapseActive = tempDiscomfort > 0.6 && (acLevel / 100) < SEASONS.acCollapseThreshold;
   const collapseMulti = collapseActive ? SEASONS.collapseMultiplier : 1.0;
-  const busTempPenalty = tempDiscomfort * SEASONS.peakBusMobilityPenalty * (1 - acMitigation) * collapseMulti;
+  // Extreme-weather multiplier: AC matters 1.6× more in Jan/Feb/Jul/Aug/Dec (only when not already in collapse)
+  const weatherMultiplier = (!collapseActive && tempDiscomfort >= 0.75) ? 1.6 : 1.0;
+  const busTempPenalty = tempDiscomfort * SEASONS.peakBusMobilityPenalty * (1 - acMitigation) * collapseMulti * weatherMultiplier;
   const baselineTempPenalty = tempDiscomfort * SEASONS.peakBaselineMobilityPenalty;
   const weatherUberBoost = tempDiscomfort * SEASONS.peakUberDemandBoost * (1 - acMitigation * 0.5);
 
