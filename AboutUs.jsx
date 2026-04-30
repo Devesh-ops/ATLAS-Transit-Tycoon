@@ -50,7 +50,7 @@ function TeamContent() {
   );
 }
 
-function AboutUsContent() {
+export function AboutUsContent() {
   return (
     <div style={{ padding: '30px', flex: 1, color: '#3D3830', fontSize: '15px', lineHeight: 1.7, textAlign: 'left' }}>
       <p>
