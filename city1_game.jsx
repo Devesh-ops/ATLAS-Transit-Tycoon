@@ -243,7 +243,6 @@ function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
     - budgetStress * 25 * happiness.budgetStressWeight
   ));
 
-  const busIsConstraining = false; // flip mechanic removed — bus always boosts
   const revenuePositive = monthlyDelta > 0;
 
   const hMob = mobilityGain * happiness.mobilityWeight;
@@ -252,7 +251,7 @@ function simulate(uberTax, busSubsidy, budgetRemaining, roundIndex = 12) {
 
   return {
     mobilityScore, congestionLevel, happinessScore, monthlyDelta, uberRevenue, busCost, budgetStress,
-    busIsConstraining, revenuePositive,
+    revenuePositive,
     mobilityBreakdown: [
       { label: "Base", value: baseline.mobilityScore },
       { label: "Uber Tax", value: -uberLoss, color: C.uberColor },
@@ -413,40 +412,27 @@ function calculateProjection(history, currentBudget) {
   };
 }
 
+function getPolicyStatus(score) {
+  if (score >= 80) return { text: "On track", color: C.green };
+  if (score >= 65) return { text: "Stable", color: C.blue };
+  if (score >= 50) return { text: "At risk", color: C.amber };
+  return { text: "In trouble", color: C.red };
+}
+
 function PerformanceHeader({ projection, goalGrade = "B" }) {
+  const status = getPolicyStatus(projection.score);
+  const weakest = projection.breakdown.length > 0
+    ? [...projection.breakdown].sort((a, b) => a.points - b.points)[0]
+    : null;
   return (
     <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-      {/* Row 1: grade badge + score + pts to next + goal */}
       <div className="mobile-grade-bar" style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
-          <InfoTip text="Predicts your final year-end grade based on your current score and recent performance trends." />
-        </div>
-        <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
-          {projection.grade.grade}
-        </div>
-        <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score {Math.round(projection.score)}/100</div>
-        {projection.nextGrade ? (
-          <div style={{ fontSize: 11, color: C.textFaint }}>· {projection.pointsToNext} pts to <span style={{ color: projection.nextGrade.color, fontWeight: 800 }}>{projection.nextGrade.grade}</span></div>
-        ) : (
-          <div style={{ fontSize: 11, color: C.textFaint }}>· Top grade</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: status.color }}>Status: {status.text}</div>
+        {weakest && (
+          <div style={{ fontSize: 11, color: C.textFaint }}>· Main weakness: <span style={{ color: weakest.color, fontWeight: 700 }}>{weakest.label}</span></div>
         )}
         <div style={{ flex: 1 }} />
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: Grade {goalGrade} or Higher to Advance</div>
-      </div>
-      {/* Row 2: segmented bar + component breakdown */}
-      <div className="mobile-grade-bar-row2" style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
-          {projection.breakdown.map((b) => (
-            <div key={b.key} style={{ width: `${Math.max(0, Math.min(100, (b.points / Math.max(1, projection.score)) * 100))}%`, background: b.color, transition: "width 0.4s" }} />
-          ))}
-        </div>
-        {projection.breakdown.map((b) => (
-          <div key={b.key} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: b.color }} />
-            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>{b.label} <span style={{ color: b.color }}>+{Math.max(0, b.points).toFixed(0)}</span></span>
-          </div>
-        ))}
       </div>
     </div>
   );

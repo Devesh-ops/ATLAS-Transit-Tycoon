@@ -368,7 +368,6 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   const hCongTotal = -(congestionLevel - SIMULATION.baseline.congestionLevel) * hw.congestionWeight;
   const hBudgTotal = -budgetStress * 28 * hw.budgetStressWeight;
 
-  const busIsConstraining = false; 
   const weatherAlert = tempDiscomfort > 0.6 && acMitigation < 0.35;
 
   const results = {
@@ -377,7 +376,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
     congestionLevel, genderEquityScore, incomeEquityScore,
     cityHappiness, poorWomenH, poorMenH, richWomenH, richMenH,
     monthlyDelta, uberRevenue, busCost, acCost,
-    budgetStress, busIsConstraining, weatherAlert, collapseActive,
+    budgetStress, weatherAlert, collapseActive,
     tempDiscomfort, tempIndex: ti, genderGap, incomeGap,
     genderEquityBreakdown: [
       { label: "Ideal", value: 100 },
@@ -631,35 +630,13 @@ function PerformanceHeader({ projection, goalGrade = "B" }) {
     : null;
   return (
     <div style={{ background: C.cardBg, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-      {/* Row 1: grade badge + qualitative status + weakness + goal */}
       <div className="mobile-grade-bar" style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
-          <InfoTip text="Estimates your trajectory based on recent trends. Exact scores shown at year end." />
-        </div>
-        <div style={{ background: projection.grade.color, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>
-          {projection.grade.grade}
-        </div>
         <div style={{ fontSize: 12, fontWeight: 700, color: status.color }}>Status: {status.text}</div>
         {weakest && (
           <div style={{ fontSize: 11, color: C.textFaint }}>· Main weakness: <span style={{ color: weakest.color, fontWeight: 700 }}>{weakest.label}</span></div>
         )}
         <div style={{ flex: 1 }} />
         <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: Grade {goalGrade} or Higher to Win</div>
-      </div>
-      {/* Row 2: segmented bar + dimension labels only (no exact points) */}
-      <div className="mobile-grade-bar-row2" style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
-        <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
-          {projection.breakdown.map((b) => (
-            <div key={b.key || b.label} style={{ width: `${Math.max(0, Math.min(100, (b.points / Math.max(0.1, projection.score)) * 100))}%`, background: b.color, transition: "width 0.4s" }} />
-          ))}
-        </div>
-        {projection.breakdown.map((b) => (
-          <div key={b.key || b.label} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, background: b.color }} />
-            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>{b.label}</span>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -1630,6 +1607,8 @@ export default function CrestwoodTycoonCity4({ onAdvance, onSetFinalScreen }) {
   const [timedOut, setTO] = useState(false);
   const [budget, setBudget] = useState(BUDGET_CONFIG.annualBudget);
   const [scoreless, setSL] = useState(false);
+  const [gameOverMonth, setGOM] = useState("");
+  const [polMonth, setPolMonth] = useState("");
   const [highScore, setHighScore] = useState(() => {
     const saved = localStorage.getItem("ATLAS_City4_HighScore");
     return saved ? parseInt(saved, 10) : 0;
@@ -1639,14 +1618,6 @@ export default function CrestwoodTycoonCity4({ onAdvance, onSetFinalScreen }) {
     localStorage.setItem("ATLAS_City4_HighScore", String(newScore));
     setHighScore(newScore);
   }, []);
-
-  const handleNextMonth = useCallback((newBudget) => {
-    setBudget(prev => {
-      if (newBudget <= 0) { setGOM(MONTHS[roundIndex]); setScreen("gameOver"); return 0; }
-      setScreen("result");
-      return newBudget;
-    });
-  }, [roundIndex]);
 
   const handleFinishLevel = useCallback(() => {
     setScreen("yearEnd");
