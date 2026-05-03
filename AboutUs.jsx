@@ -67,7 +67,7 @@ export function AboutUsContent() {
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <a
-            href="/Demand_for_Mobility_Christensen_Osman-Sep2025.pdf"
+            href="Demand_for_Mobility_Christensen_Osman-Sep2025.pdf"
             target="_blank"
             rel="noreferrer"
             style={{ display: 'block', padding: '10px 14px', background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: '8px', textDecoration: 'none', color: '#1A1714', fontSize: '13px', fontWeight: 600 }}
@@ -77,7 +77,7 @@ export function AboutUsContent() {
             Demand for Mobility — Christensen &amp; Osman (2025) ↗
           </a>
           <a
-            href="/COS-Weathering-the-Ride.pdf"
+            href="COS-Weathering-the-Ride.pdf"
             target="_blank"
             rel="noreferrer"
             style={{ display: 'block', padding: '10px 14px', background: '#FFFFFF', border: '1px solid #86EFAC', borderRadius: '8px', textDecoration: 'none', color: '#1A1714', fontSize: '13px', fontWeight: 600 }}

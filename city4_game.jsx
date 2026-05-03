@@ -146,11 +146,11 @@ const BUDGET_CONFIG = {
 const SCORING = {
   weights: { happiness: 0.35, genderEquity: 0.30, incomeEquity: 0.20, budget: 0.15 },
   grades: [
-    { min: 85, grade: "A+", label: "Equitable City for All", color: C.green },
-    { min: 75, grade: "A", label: "Thriving & Fair", color: C.green },
-    { min: 65, grade: "B", label: "Progress Made", color: "#3D7A2B" },
-    { min: 55, grade: "C", label: "Gaps Persist", color: C.amber },
-    { min: 45, grade: "D", label: "Divided City", color: "#C05621" },
+    { min: 80, grade: "A+", label: "Equitable City for All", color: C.green },
+    { min: 70, grade: "A", label: "Thriving & Fair", color: C.green },
+    { min: 60, grade: "B", label: "Progress Made", color: "#3D7A2B" },
+    { min: 50, grade: "C", label: "Gaps Persist", color: C.amber },
+    { min: 40, grade: "D", label: "Divided City", color: "#C05621" },
     { min: 0, grade: "F", label: "Left Behind", color: C.red },
   ],
 };
@@ -321,8 +321,8 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   ));
 
   // ── EQUITY SCORES ────────────────────────────────────────────────────
-  const genderGap = Math.max(0, menMobility - womenMobility);
-  const incomeGap = Math.max(0, richMobility - poorMobility);
+  const genderGap = Math.abs(menMobility - womenMobility);
+  const incomeGap = Math.abs(richMobility - poorMobility);
   const genderEquityScore = Math.min(100, Math.max(0, 100 - genderGap * equity.genderPenaltyPerGapPoint));
   const incomeEquityScore = Math.min(100, Math.max(0, 100 - incomeGap * equity.incomePenaltyPerGapPoint));
 

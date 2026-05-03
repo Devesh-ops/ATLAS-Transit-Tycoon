@@ -40,7 +40,7 @@ const SIMULATION = {
     revenuePerPercent: 0.10,
   },
   bus: {
-    mobilityGainPerPercent: 0.35,         // high: bus subsidies boost mobility a lot
+    mobilityGainPerPercent: 0.55,         // high: bus subsidies boost mobility a lot
     congestionOffsetPerPercent: 0.10,     // low: buses reduce congestion only slightly
   },
   happiness: {
@@ -396,7 +396,7 @@ function calculateProjection(history, currentBudget) {
   const smartH = projectMetricTrend(history.map(h => h.happinessScore));
   const avgDelta = (currentBudget - BUDGET_CONFIG.annualBudget) / monthsElapsed;
   const projectedBudgetFrac = Math.max(0, currentBudget + (avgDelta * (12 - monthsElapsed))) / BUDGET_CONFIG.annualBudget;
-  const budgetPoints = Math.max(0, projectedBudgetFrac * 100 * BUDGET_CONFIG.budgetBonusWeight);
+  const budgetPoints = Math.min(15, Math.max(0, projectedBudgetFrac * 100 * BUDGET_CONFIG.budgetBonusWeight));
   const projectedScore = smartH + budgetPoints;
   const grade = getGrade(projectedScore);
   const next = getNextGrade(projectedScore);

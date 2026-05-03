@@ -251,7 +251,7 @@ function simulate(uberTax, busSubsidy, acLevel, roundIndex, budgetRemaining) {
   ));
 
   // ── EQUITY ─────────────────────────────────────────────────
-  const mobilityGap = Math.max(0, richMobility - poorMobility);
+  const mobilityGap = Math.abs(richMobility - poorMobility);
   const equityScore = Math.min(100, Math.max(0, 100 - mobilityGap * equity.penaltyPerGapPoint));
 
   // ── AC COMFORT ─────────────────────────────────────────────
