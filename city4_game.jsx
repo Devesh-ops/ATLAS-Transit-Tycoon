@@ -581,6 +581,7 @@ function calculateProjection(history, currentBudget) {
       ],
       nextGrade: getNextGrade(startScore),
       pointsToNext: 8,
+      isBankruptWarning: false,
     };
   }
 
@@ -613,10 +614,13 @@ function calculateProjection(history, currentBudget) {
     ],
     nextGrade: next,
     pointsToNext: next ? Math.max(0, Math.ceil(next.min - projectedScore)) : 0,
+    isBankruptWarning: (currentBudget / BUDGET_CONFIG.annualBudget < 0.15) && projectedBudgetFrac <= 0,
   };
 }
 
-function getPolicyStatus(score) {
+function getPolicyStatus(projection) {
+  if (projection.isBankruptWarning) return { text: "Bankrupt Path", color: C.red };
+  const score = projection.score;
   if (score >= 80) return { text: "On track", color: C.green };
   if (score >= 65) return { text: "Stable", color: C.blue };
   if (score >= 50) return { text: "At risk", color: C.amber };
@@ -624,7 +628,7 @@ function getPolicyStatus(score) {
 }
 
 function PerformanceHeader({ projection, goalGrade = "B" }) {
-  const status = getPolicyStatus(projection.score);
+  const status = getPolicyStatus(projection);
   const weakest = projection.breakdown.length > 0
     ? [...projection.breakdown].sort((a, b) => a.points - b.points)[0]
     : null;
