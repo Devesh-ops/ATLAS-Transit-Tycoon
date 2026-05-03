@@ -143,7 +143,7 @@ function App() {
     const renderComponent = () => {
         switch (activeComponent) {
             case 'onboarding':
-                return <OnboardingFlow onComplete={() => { unlockCity('tutorial'); setActiveComponent('menu'); }} />;
+                return <OnboardingFlow onComplete={() => { unlockCity('tutorial'); setActiveComponent(isTestbedMode ? 'menu' : 'city1'); }} />;
             case 'city1':
                 return <TransportTycoon onAdvance={() => { unlockCity('city1'); setActiveComponent('city2'); }} onReturnToMenu={() => setActiveComponent('menu')} />;
             case 'city2':
