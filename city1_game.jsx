@@ -1165,6 +1165,7 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
 //  MAIN GAME CONTROLLER
 // ============================================================
 export default function TransportTycoon({ onAdvance }) {
+  const [saveLoaded, setSaveLoaded] = useState(false);
   const [screen, setScreen] = useState("intro");
   const [roundIndex, setRound] = useState(0);
   const [uberTax, setUber] = useState(0);
@@ -1177,6 +1178,38 @@ export default function TransportTycoon({ onAdvance }) {
   const [scoreless, setSL] = useState(false);
   const [gameOverMonth, setGOM] = useState("");
   const [polMonth, setPolMonth] = useState("");
+
+  // Load save on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("atlas_save_city1");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        setScreen(data.screen || "planning");
+        setRound(data.roundIndex || 0);
+        setUber(data.uberTax || 0);
+        setBus(data.busSubsidy || 0);
+        setHistory(data.history || []);
+        setResult(data.result || null);
+        setMsg(data.advisorMsg || "");
+        setTO(data.timedOut || false);
+        setBudget(data.budget ?? BUDGET_CONFIG.annualBudget);
+        setSL(data.scoreless || false);
+        setGOM(data.gameOverMonth || "");
+        setPolMonth(data.polMonth || "");
+      } catch (e) {
+        console.error("Failed to load save", e);
+      }
+    }
+    setSaveLoaded(true);
+  }, []);
+
+  // Save on every state change
+  useEffect(() => {
+    if (!saveLoaded) return;
+    const state = { screen, roundIndex, uberTax, busSubsidy, history, result, advisorMsg, timedOut, budget, scoreless, gameOverMonth, polMonth };
+    localStorage.setItem("atlas_save_city1", JSON.stringify(state));
+  }, [screen, roundIndex, uberTax, busSubsidy, history, result, advisorMsg, timedOut, budget, scoreless, gameOverMonth, polMonth, saveLoaded]);
 
   const handleCommit = useCallback((uberVal, busVal, wasTimedOut) => {
     // 1. Physics
@@ -1220,6 +1253,7 @@ export default function TransportTycoon({ onAdvance }) {
   }, [roundIndex]);
 
   const handleRestart = useCallback(() => {
+    localStorage.removeItem("atlas_save_city1");
     setScreen("intro"); setRound(0); setUber(0); setBus(0);
     setHistory([]); setResult(null); setTO(false);
     setBudget(BUDGET_CONFIG.annualBudget); setSL(false); setGOM(""); setPolMonth("");

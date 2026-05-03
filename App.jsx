@@ -1,15 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import OnboardingFlow from './onboarding.jsx';
 import TransportTycoon from './city1_game.jsx';
 import RiverdaleTycoon from './city2_game.jsx';
 import GildedHollowTycoon from './city3_game.jsx';
 import CrestwoodTycoon from './city4_game.jsx';
 import AboutUsModal from './AboutUs.jsx';
+import GameMenu from './GameMenu.jsx';
+import TestbedSelector from './TestbedSelector.jsx';
 
 function App() {
     const [activeComponent, setActiveComponent] = useState('menu');
     const [isAboutOpen, setIsAboutOpen] = React.useState(false);
     const [hideGlobalControls, setHideGlobalControls] = React.useState(false);
+    const [progress, setProgress] = useState(() => {
+        const saved = localStorage.getItem('atlas_progress');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    // Toggle for developer mode
+    const isTestbedMode = window.location.search.includes('testbed');
+
+    useEffect(() => {
+        localStorage.setItem('atlas_progress', JSON.stringify(progress));
+    }, [progress]);
+
+    const unlockCity = (cityId) => {
+        if (!progress.includes(cityId)) {
+            setProgress(prev => [...prev, cityId]);
+        }
+    };
 
     // Global Mobile Responsive CSS
     React.useEffect(() => {
@@ -115,57 +134,28 @@ function App() {
     const renderComponent = () => {
         switch (activeComponent) {
             case 'onboarding':
-                return <OnboardingFlow onComplete={() => setActiveComponent('menu')} />;
+                return <OnboardingFlow onComplete={() => { unlockCity('tutorial'); setActiveComponent('menu'); }} />;
             case 'city1':
-                return <TransportTycoon onAdvance={() => setActiveComponent('city2')} />;
+                return <TransportTycoon onAdvance={() => { unlockCity('city1'); setActiveComponent('city2'); }} onReturnToMenu={() => setActiveComponent('menu')} />;
             case 'city2':
-                return <RiverdaleTycoon onAdvance={() => setActiveComponent('city3')} />;
+                return <RiverdaleTycoon onAdvance={() => { unlockCity('city2'); setActiveComponent('city3'); }} onReturnToMenu={() => setActiveComponent('menu')} />;
             case 'city3':
-                return <GildedHollowTycoon onAdvance={() => setActiveComponent('city4')} />;
+                return <GildedHollowTycoon onAdvance={() => { unlockCity('city3'); setActiveComponent('city4'); }} onReturnToMenu={() => setActiveComponent('menu')} />;
             case 'city4':
-                return <CrestwoodTycoon onAdvance={() => { setActiveComponent('menu'); setHideGlobalControls(false); }} onSetFinalScreen={(val = true) => setHideGlobalControls(val)} />;
-            default:
+                return <CrestwoodTycoon onAdvance={() => { unlockCity('city4'); setActiveComponent('menu'); setHideGlobalControls(false); }} onSetFinalScreen={(val = true) => setHideGlobalControls(val)} onReturnToMenu={() => setActiveComponent('menu')} />;
+            case 'menu':
+                if (isTestbedMode) {
+                    return <TestbedSelector setActiveComponent={setActiveComponent} />;
+                }
                 return (
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100vh',
-                        gap: '20px'
-                    }}>
-                        <h1 style={{ fontSize: '3rem', marginBottom: '20px' }}>🏙️ Testbed</h1>
-                        <p style={{ color: '#94A3B8', marginBottom: '40px' }}>Select a component to test</p>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
-                            <TestCard
-                                title="Onboarding"
-                                desc="Intro & Narrative Flow"
-                                onClick={() => setActiveComponent('onboarding')}
-                            />
-                            <TestCard
-                                title="City 1: Smallville"
-                                desc="Basic Simulation Levers"
-                                onClick={() => setActiveComponent('city1')}
-                            />
-                            <TestCard
-                                title="City 2: Riverdale"
-                                desc="Seasonal & Congestion Dynamics"
-                                onClick={() => setActiveComponent('city2')}
-                            />
-                            <TestCard
-                                title="City 3: Gilded Hollow"
-                                desc="Income Inequality Dynamics"
-                                onClick={() => setActiveComponent('city3')}
-                            />
-                            <TestCard
-                                title="City 4: Crestwood"
-                                desc="Gender Safety & Equity Dynamics"
-                                onClick={() => setActiveComponent('city4')}
-                            />
-                        </div>
-                    </div>
+                    <GameMenu 
+                        onSelectCity={setActiveComponent} 
+                        onStartOnboarding={() => setActiveComponent('onboarding')}
+                        progress={progress}
+                    />
                 );
+            default:
+                return <GameMenu onSelectCity={setActiveComponent} progress={progress} />;
         }
     };
 

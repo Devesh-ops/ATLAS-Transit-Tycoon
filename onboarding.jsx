@@ -510,27 +510,10 @@ function MockGameUI({ tutorialStep }) {
             {/* 2. Performance Header */}
             <div style={{ ...highlight(0), background: C.cardBg, borderBottom: `1px solid ${C.border}`, padding: "0" }}>
                 <div className="mobile-grade-bar" style={{ padding: "6px 16px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: C.textMuted, textTransform: "uppercase", letterSpacing: 1 }}>Projected Grade</div>
-                    <div style={{ background: C.green, color: "#fff", padding: "2px 8px", borderRadius: 6, fontSize: 14, fontWeight: 900 }}>B+</div>
-                    <div style={{ fontSize: 12, color: C.textMuted, fontWeight: 700 }}>Score 68/100</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>Status: On Track</div>
+                    <div style={{ fontSize: 11, color: C.textFaint }}>· Main weakness: <span style={{ color: C.amber, fontWeight: 700 }}>Budget</span></div>
                     <div style={{ flex: 1 }} />
                     <div style={{ fontSize: 11, fontWeight: 700, color: C.textSub }}>Goal: Grade B or Higher to Advance</div>
-                </div>
-                <div className="mobile-grade-bar-row2" style={{ padding: "0 16px 8px", display: "flex", alignItems: "center", gap: 12 }}>
-                    <div style={{ flex: 1, height: 6, background: C.track, borderRadius: 3, overflow: "hidden", display: "flex" }}>
-                        <div style={{ width: "65%", background: C.green }} />
-                        <div style={{ width: "5%", background: C.amber }} />
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: 2, background: C.green }} />
-                            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>Happiness <span style={{ color: C.green }}>+65</span></span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: 2, background: C.amber }} />
-                            <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 700 }}>Budget <span style={{ color: C.amber }}>+3</span></span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -633,7 +616,7 @@ const TUTORIAL_STEPS = [
     {
         icon: "🏆",
         title: "The Mission",
-        text: "This is your performance health. Your goal is to reach Grade B (65+ points) by December. Happiness and Budget efficiency both contribute to your score.",
+        text: "This is your performance status. Maya monitors your progress and tells you if you are 'On Track' to hit the Grade B target. Watch your 'Main Weakness' to see where you need to adjust your sliders.",
         contentPosition: { top: "135px", left: "50%", transform: "translateX(-50%)" }
     },
     {
