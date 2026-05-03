@@ -1161,9 +1161,13 @@ function YearEndScreen({ history, finalBudget, onRestart, scoreless, onAdvance }
   );
 }
 
-// ============================================================
-//  MAIN GAME CONTROLLER
-// ============================================================
+/**
+ * TransportTycoon (City 1) Component
+ * 
+ * Implements the core simulation for Smallville. 
+ * Features an auto-save mechanism that persists the entire game state to 
+ * localStorage on every state change, allowing for seamless mission resumption.
+ */
 export default function TransportTycoon({ onAdvance }) {
   const [saveLoaded, setSaveLoaded] = useState(false);
   const [screen, setScreen] = useState("intro");

@@ -8,6 +8,15 @@ import AboutUsModal from './AboutUs.jsx';
 import GameMenu from './GameMenu.jsx';
 import TestbedSelector from './TestbedSelector.jsx';
 
+/**
+ * App Component
+ * 
+ * The root controller for the application. Manages:
+ * 1. Mode Switching: Detects `?testbed` query param to toggle between Production and Sandbox modes.
+ * 2. Career Progress: Persists unlocked cities and tutorial completion in `atlas_progress`.
+ * 3. Navigation: Routes between the Game Menu, Onboarding, and various City simulations.
+ * 4. UI State: Manages global visibility for controls (like the 'Back' button).
+ */
 function App() {
     const [activeComponent, setActiveComponent] = useState('menu');
     const [isAboutOpen, setIsAboutOpen] = React.useState(false);

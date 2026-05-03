@@ -19,6 +19,18 @@ const CITIES = [
   { id: 'city4', name: 'Crestwood', desc: 'The Final Frontier', icon: '🏔️', theme: '#8B5CF6' },
 ];
 
+/**
+ * GameMenu Component
+ * 
+ * The primary landing page for "The Mobility Lab". Handles career progression,
+ * city selection, and onboarding triggers. It also manages its own local state
+ * for active city saves and confirmation dialogs.
+ * 
+ * @param {Object} props
+ * @param {Function} props.onSelectCity - Callback when a city card is clicked (either new or resume)
+ * @param {Function} props.onStartOnboarding - Callback to trigger the tutorial flow
+ * @param {Array<string>} props.progress - Array of unlocked city/tutorial IDs (e.g., ['tutorial', 'city1'])
+ */
 function GameMenu({ onSelectCity, onStartOnboarding, progress = [] }) {
   const [hovered, setHovered] = useState(null);
   const [activeSaves, setActiveSaves] = useState({});
